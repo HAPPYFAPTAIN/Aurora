@@ -45,6 +45,9 @@ func (s *Server) registerRoutes(h *hertzserver.Hertz) {
 		api.POST("/sessions/switch", s.handleSessionSwitch)
 		api.POST("/sessions/rename", s.handleSessionRename)
 		api.POST("/sessions/delete", s.handleSessionDelete)
+		api.GET("/settings", s.handleSettingsGet)
+		api.PUT("/settings/user", s.handleSettingsUserUpdate)
+		api.PUT("/settings/workspace", s.handleSettingsWorkspaceUpdate)
 		api.GET("/status", s.handleStatus)
 	}
 
