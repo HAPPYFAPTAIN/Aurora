@@ -13,6 +13,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 
 	"nova/internal/book"
+	"nova/internal/prompts"
 	"nova/internal/session"
 )
 
@@ -44,10 +45,7 @@ type ChatRequest struct {
 }
 
 // StyleRule 是 config.StyleRule 的镜像，避免 agent 直接依赖 config 包。
-type StyleRule struct {
-	Scene  string
-	Styles []string
-}
+type StyleRule = prompts.StyleRule
 
 // TextSelectionRef 表示用户在编辑器中选中的一段文本引用。
 type TextSelectionRef struct {
@@ -225,30 +223,18 @@ func buildInterruptedResumeMessage(current string, interrupted *session.Interrup
 	if interrupted == nil {
 		return current
 	}
-	var sb strings.Builder
-	sb.WriteString("[异常中断恢复]\n")
-	sb.WriteString("用户当前要求继续。请从上一轮异常中断的位置继续，不要重做已经完成且已经写入文件的工作。\n")
-	sb.WriteString("如果上一轮已有部分助手输出，请把它作为已完成内容的上下文，继续完成原始请求。\n\n")
-	sb.WriteString("上一轮原始请求：\n")
-	sb.WriteString(interrupted.UserMessage)
-	if interrupted.AssistantContent != "" {
-		sb.WriteString("\n\n上一轮中断前已生成的助手内容：\n")
-		sb.WriteString(interrupted.AssistantContent)
-	}
-	if interrupted.Reason != "" {
-		sb.WriteString("\n\n上一轮中断原因：\n")
-		sb.WriteString(interrupted.Reason)
-	}
-	sb.WriteString("\n\n本轮用户继续请求：\n")
-	sb.WriteString(current)
-	return sb.String()
+	return prompts.ResumeFromInterruption(current, prompts.InterruptedResume{
+		UserMessage:      interrupted.UserMessage,
+		AssistantContent: interrupted.AssistantContent,
+		Reason:           interrupted.Reason,
+	})
 }
 
 // appendReferenceContext 将用户引用的文件内容追加到本次 Agent 输入。
 func appendReferenceContext(bookService *book.Service, message string, references []string) string {
 	var sb strings.Builder
 	sb.WriteString(message)
-	sb.WriteString("\n\n---\n以下是用户引用的文件：\n")
+	sb.WriteString(prompts.ReferenceHeader)
 
 	total := 0
 	seen := make(map[string]bool)
@@ -264,7 +250,7 @@ func appendReferenceContext(bookService *book.Service, message string, reference
 		sb.WriteString("\n")
 
 		if total >= maxReferenceTotalBytes {
-			sb.WriteString("引用内容总量已超过限制，后续文件未读取。\n")
+			sb.WriteString(prompts.ReferenceOverflowHint)
 			continue
 		}
 
@@ -289,7 +275,7 @@ func appendReferenceContext(bookService *book.Service, message string, reference
 func appendStyleReferenceContext(bookService *book.Service, message string, styleReferences []string) string {
 	var sb strings.Builder
 	sb.WriteString(message)
-	sb.WriteString("\n\n---\n以下是用户本轮指定的风格参考。请只把它们作为文风、节奏、叙述方式、句式和氛围参考，不要照搬内容、人物、情节或设定：\n")
+	sb.WriteString(prompts.StyleReferenceHeader)
 
 	total := 0
 	seen := make(map[string]bool)
@@ -305,7 +291,7 @@ func appendStyleReferenceContext(bookService *book.Service, message string, styl
 		sb.WriteString("\n")
 
 		if total >= maxStyleReferenceTotalBytes {
-			sb.WriteString("风格参考内容总量已超过限制，后续文件未读取。\n")
+			sb.WriteString(prompts.StyleReferenceOverflowHint)
 			continue
 		}
 
@@ -328,45 +314,16 @@ func appendStyleReferenceContext(bookService *book.Service, message string, styl
 
 // appendStyleRulesHint 在用户本轮未通过 # 指定风格时，
 // 把工作区配置的「场景 → 风格文件」规则集作为建议附加到上下文。
-// 不直接读取文件内容，由 Agent 基于本轮章节内容自行判断：
-//   - 仅当本轮属于章节正文创作 / 续写 / 重写时，才从规则集中挑选最匹配当前场景的一条（或多条），
-//     再用 read_file 读取对应文件作为文风参考；
-//   - 若本轮属于脑暴、大纲、设定、问答、规划等非章节正文场景，则全部忽略；
-//   - 若没有任何场景匹配，可不读取，避免强行套用不合适的风格。
+// 不直接读取文件内容，由 Agent 基于本轮章节内容自行判断。
 func appendStyleRulesHint(message string, rules []StyleRule) string {
-	var sb strings.Builder
-	sb.WriteString(message)
-	sb.WriteString("\n\n---\n[场景化默认风格规则] 当前工作区配置了以下「场景 → 风格文件」映射（风格文件位于 setting/styles/ 下）：\n")
-	for i, rule := range rules {
-		scene := strings.TrimSpace(rule.Scene)
-		if scene == "" || len(rule.Styles) == 0 {
-			continue
-		}
-		fmt.Fprintf(&sb, "%d. 场景：%s\n   风格：", i+1, scene)
-		first := true
-		for _, s := range rule.Styles {
-			s = strings.TrimSpace(s)
-			if s == "" {
-				continue
-			}
-			if !first {
-				sb.WriteString("、")
-			}
-			sb.WriteString(s)
-			first = false
-		}
-		sb.WriteString("\n")
-	}
-	sb.WriteString("\n触发规则：仅当你判断本轮要执行『章节正文的创作 / 续写 / 重写』时，先根据当前章节内容选出最贴近的场景，再用 read_file 读取该场景对应的风格文件，把它们作为文风、节奏、叙述方式、句式和氛围的参考；不要照搬其中的人物、情节或设定。\n")
-	sb.WriteString("若本轮属于脑暴、大纲、设定、问答、规划等非章节正文场景，请完全忽略以上规则，不要读取任何风格文件；若没有场景明显匹配，也不必强行选择。\n")
-	return sb.String()
+	return prompts.StyleRulesHint(message, rules)
 }
 
 // appendSelectionContext 将用户在编辑器中选中的文本片段追加到消息上下文。
 func appendSelectionContext(message string, selections []TextSelectionRef) string {
 	var sb strings.Builder
 	sb.WriteString(message)
-	sb.WriteString("\n\n---\n以下是用户在编辑器中选中的文本片段，请针对这些内容进行操作：\n")
+	sb.WriteString(prompts.SelectionHeader)
 
 	for _, sel := range selections {
 		sb.WriteString("\n## 选中内容来自 ")
@@ -633,31 +590,14 @@ func mergeToolCalls(existing []schema.ToolCall, incoming []schema.ToolCall) []sc
 
 // appendPlanModeInstruction 在用户消息前追加规划模式指令，允许读取文件但禁止写操作，只输出结构化计划。
 func appendPlanModeInstruction(message string) string {
-	return `[规划模式] 请你先制定计划，不要执行任何写操作。
-
-要求：
-1. 你可以使用 read_file 工具读取文件内容来了解当前状态
-2. 分析用户的需求，列出需要完成的步骤
-3. 说明每一步涉及哪些文件、要做什么操作
-4. 如果有多种方案，列出利弊供用户选择
-5. 禁止使用 write_file、edit_file、delete_file 等任何写操作工具
-6. 等待用户确认或调整计划后再执行
-
-用户需求：
-` + message
+	return prompts.PlanMode(message)
 }
 
 // appendContextBoundaryInstruction 在用户消息前追加上下文边界说明，
-// 强调当前请求才是“这次要做什么”，工作区/已确认小说状态是“背景是什么”，
+// 强调当前请求才是"这次要做什么"，工作区/已确认小说状态是"背景是什么"，
 // 历史对话只能用于辅助理解，不能直接成为本轮执行依据。
 func appendContextBoundaryInstruction(message string) string {
-	return `[上下文边界]
-- 当前用户请求是“这次要做什么”，请只按本轮请求、显式 @ 引用、# 风格参考和编辑器选区行动。
-- 历史对话只能辅助理解上下文，不要把上一轮的待办、工具意图或未完成动作当成本轮指令，除非用户在本轮明确延续。
-- 如果当前请求与历史看起来无关或冲突，以当前请求为准，不要继续执行上一轮的工具调用或修改。
-
-本轮请求：
-` + message
+	return prompts.ContextBoundary(message)
 }
 
 // EventError 创建标准错误事件。

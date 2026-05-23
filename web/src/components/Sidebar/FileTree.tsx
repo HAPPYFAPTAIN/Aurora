@@ -366,10 +366,10 @@ function FileTreeNode({
             {renderActionMenu(actions, 'context')}
           </ContextMenuContent>
         </ContextMenu>
-        {expanded && node.children && (
+        {expanded && (
           <div className="ml-3">
             <FileTreeList
-              nodes={node.children}
+              nodes={node.children ?? []}
               basePath={path}
               selectedFile={selectedFile}
               onSelectFile={onSelectFile}

@@ -15,6 +15,7 @@ import (
 
 	"nova/config"
 	"nova/internal/book"
+	"nova/internal/prompts"
 )
 
 // Build 构建小说创作 Agent（deep agent + 文件系统工具 + Skill 中间件）。
@@ -79,11 +80,5 @@ func Build(ctx context.Context, cfg *config.Config, state *book.State) (adk.Agen
 // 引导 Agent 在后续轮次基于该反馈自我修正（例如改用正确的工具名）。
 func handleUnknownTool(_ context.Context, name, input string) (string, error) {
 	log.Printf("[agent] LLM 调用了不存在的工具 name=%s args=%s", name, input)
-	return fmt.Sprintf(
-		"[tool error] 工具 %q 不存在或当前不可用。请基于该错误自我分析：\n"+
-			"1) 如果是工具名拼写错误（例如 write_todo 应为 write_todos），请在下一步使用正确的工具名重新调用；\n"+
-			"2) 如果该能力无法通过现有工具完成，请改用其他可用工具或直接以文本回复用户；\n"+
-			"3) 不要重复调用同一个不存在的工具。",
-		name,
-	), nil
+	return prompts.UnknownToolMessage(name), nil
 }

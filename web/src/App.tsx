@@ -65,10 +65,24 @@ function pickLRUVictim(tabs: Tab[], protectedKey: string | null, activations: Ma
   return victim
 }
 
+/** 按 tabKey 去重，保留首次出现的条目，防止 React 渲染时出现重复 key。 */
+function dedupeTabs(tabs: Tab[]): Tab[] {
+  const seen = new Set<string>()
+  const result: Tab[] = []
+  for (const t of tabs) {
+    const k = tabKey(t)
+    if (seen.has(k)) continue
+    seen.add(k)
+    result.push(t)
+  }
+  return result
+}
+
 /** 按 max 限制裁剪 tab 列表，循环淘汰最久未激活的 tab；副作用：从 activations 删除被淘汰项。 */
 function enforceTabLimit(tabs: Tab[], protectedKey: string | null, max: number, activations: Map<string, number>): Tab[] {
-  if (max < 1) return tabs
-  let current = tabs
+  const deduped = dedupeTabs(tabs)
+  if (max < 1) return deduped
+  let current = deduped
   while (current.length > max) {
     const victim = pickLRUVictim(current, protectedKey, activations)
     if (!victim) break
@@ -100,7 +114,7 @@ function readTabsFor(workspace: string): Tab[] {
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed.flatMap((item): Tab[] => {
+    const tabs = parsed.flatMap((item): Tab[] => {
       if (item && typeof item === 'object') {
         if (item.kind === 'home') return [{ kind: 'home' }]
         if (item.kind === 'settings') return [{ kind: 'settings' }]
@@ -110,6 +124,7 @@ function readTabsFor(workspace: string): Tab[] {
       if (typeof item === 'string') return [{ kind: 'file', path: item }]
       return []
     })
+    return dedupeTabs(tabs)
   } catch {
     return []
   }
@@ -327,12 +342,12 @@ function App() {
     // 重命名后用旧路径前缀替换 tab 列表中的匹配项
     const parent = path.replace(/\/[^/]*$/, '')
     const newPath = parent ? `${parent}/${newName}` : newName
-    setOpenTabs((prev) => prev.map((t) => {
+    setOpenTabs((prev) => dedupeTabs(prev.map((t) => {
       if (t.kind !== 'file') return t
       if (t.path === path) return { kind: 'file', path: newPath }
       if (t.path.startsWith(`${path}/`)) return { kind: 'file', path: `${newPath}${t.path.slice(path.length)}` }
       return t
-    }))
+    })))
     notifyGitChange()
   }, [notifyGitChange, renameItem])
 
@@ -343,12 +358,12 @@ function App() {
 
   const handleMoveItem = useCallback(async (from: string, to: string) => {
     await moveItem(from, to)
-    setOpenTabs((prev) => prev.map((t) => {
+    setOpenTabs((prev) => dedupeTabs(prev.map((t) => {
       if (t.kind !== 'file') return t
       if (t.path === from) return { kind: 'file', path: to }
       if (t.path.startsWith(`${from}/`)) return { kind: 'file', path: `${to}${t.path.slice(from.length)}` }
       return t
-    }))
+    })))
     notifyGitChange()
   }, [moveItem, notifyGitChange])
 
