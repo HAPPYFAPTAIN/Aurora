@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- 工程配置：忽略本地 `.worktrees/` 目录，便于在隔离 worktree 中开发大功能而不污染主工作区
 - 后端 `config`：默认 `NovaDir` 由 `~/.nova` 改为后端运行目录下的 `./.nova`，未设置 `NOVA_DIR` 环境变量时使用该相对路径解析为绝对路径；同步更新 `config.template.toml`、`README.md` 中的示例及测试 `TestLoadDefaultsNovaDirToHomeNova`
 
 ## [v0.1.3] - 2026-05-24
