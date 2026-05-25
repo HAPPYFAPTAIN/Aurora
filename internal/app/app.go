@@ -219,7 +219,7 @@ func (a *App) AppendInteractiveTurn(storyID, branchID, user, narrative string) (
 // StartInteractiveTask 启动互动模式 Agent 任务，输出写回 interactive/story。
 func (a *App) StartInteractiveTask(storyID, branchID, message string) *Task {
 	a.mu.Lock()
-	if a.interactiveStoryRunner == nil || a.interactive == nil {
+	if a.interactive == nil || a.bookState == nil || a.cfg == nil {
 		a.mu.Unlock()
 		log.Printf("[interactive-agent-task] 未选择 workspace，无法启动任务")
 		return nil
@@ -229,12 +229,25 @@ func (a *App) StartInteractiveTask(storyID, branchID, message string) *Task {
 		a.activeInteractiveTask.Abort()
 	}
 
-	runner := a.interactiveStoryRunner
 	store := a.interactive
+	state := a.bookState
 	bookService := a.bookService
 	chatService := a.chatService
-	novaDir := a.cfg.NovaDir
+	runtimeCfg := *a.cfg
 	workspace := a.workspace
+	runtimeCfg.Workspace = workspace
+	novaDir := runtimeCfg.NovaDir
+	a.mu.Unlock()
+
+	runner, err := buildInteractiveStoryRunner(context.Background(), &runtimeCfg, state)
+	if err != nil {
+		log.Printf("[interactive-agent-task] 刷新互动故事 Agent Runner 失败 workspace=%s err=%v", workspace, err)
+		return nil
+	}
+	a.mu.Lock()
+	if a.workspace == workspace {
+		a.interactiveStoryRunner = runner
+	}
 	a.mu.Unlock()
 
 	req := agent.ChatRequest{
@@ -676,7 +689,7 @@ func (a *App) SessionMessages(id string) ([]session.HistoryEntry, error) {
 // StartTask 启动后台 Agent 任务。如果有正在运行的任务，先终止它。
 func (a *App) StartTask(req agent.ChatRequest) *Task {
 	a.mu.Lock()
-	if a.agentRunner == nil || a.session == nil {
+	if a.session == nil || a.bookState == nil || a.cfg == nil {
 		a.mu.Unlock()
 		log.Printf("[agent-task] 未选择 workspace，无法启动任务")
 		return nil
@@ -686,15 +699,25 @@ func (a *App) StartTask(req agent.ChatRequest) *Task {
 		a.activeTask.Abort()
 	}
 
-	runner := a.agentRunner
 	sess := a.session
+	state := a.bookState
 	bookService := a.bookService
 	chatService := a.chatService
 	workspace := a.workspace
 	gitService := a.gitService
-	novaDir := ""
-	if a.cfg != nil {
-		novaDir = a.cfg.NovaDir
+	runtimeCfg := *a.cfg
+	runtimeCfg.Workspace = workspace
+	novaDir := runtimeCfg.NovaDir
+	a.mu.Unlock()
+
+	runner, err := buildAgentRunner(context.Background(), &runtimeCfg, state)
+	if err != nil {
+		log.Printf("[agent-task] 刷新 Agent Runner 失败 workspace=%s err=%v", workspace, err)
+		return nil
+	}
+	a.mu.Lock()
+	if a.workspace == workspace {
+		a.agentRunner = runner
 	}
 	a.mu.Unlock()
 
@@ -851,13 +874,13 @@ func buildRuntime(ctx context.Context, cfg *config.Config, workspace string) (*r
 
 	runtimeCfg := *cfg
 	runtimeCfg.Workspace = absWorkspace
-	builtAgent, err := agent.Build(ctx, &runtimeCfg, state)
+	agentRunner, err := buildAgentRunner(ctx, &runtimeCfg, state)
 	if err != nil {
-		return nil, fmt.Errorf("构建 Agent 失败: %w", err)
+		return nil, err
 	}
-	interactiveStoryAgent, err := agent.BuildInteractiveStory(ctx, &runtimeCfg, state)
+	interactiveStoryRunner, err := buildInteractiveStoryRunner(ctx, &runtimeCfg, state)
 	if err != nil {
-		return nil, fmt.Errorf("构建互动故事 Agent 失败: %w", err)
+		return nil, err
 	}
 
 	return &runtimeState{
@@ -867,8 +890,24 @@ func buildRuntime(ctx context.Context, cfg *config.Config, workspace string) (*r
 		interactive:            interactive.NewStore(absWorkspace),
 		sessionStore:           store,
 		session:                sess,
-		agentRunner:            agent.NewRunner(ctx, builtAgent),
-		interactiveStoryRunner: agent.NewRunner(ctx, interactiveStoryAgent),
+		agentRunner:            agentRunner,
+		interactiveStoryRunner: interactiveStoryRunner,
 		gitService:             book.NewGitService(absWorkspace),
 	}, nil
+}
+
+func buildAgentRunner(ctx context.Context, cfg *config.Config, state *book.State) (*adk.Runner, error) {
+	builtAgent, err := agent.Build(ctx, cfg, state)
+	if err != nil {
+		return nil, fmt.Errorf("构建 Agent 失败: %w", err)
+	}
+	return agent.NewRunner(ctx, builtAgent), nil
+}
+
+func buildInteractiveStoryRunner(ctx context.Context, cfg *config.Config, state *book.State) (*adk.Runner, error) {
+	builtAgent, err := agent.BuildInteractiveStory(ctx, cfg, state)
+	if err != nil {
+		return nil, fmt.Errorf("构建互动故事 Agent 失败: %w", err)
+	}
+	return agent.NewRunner(ctx, builtAgent), nil
 }
