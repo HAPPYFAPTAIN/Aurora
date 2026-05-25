@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - 互动模式：修复 story 子模式 Agent 上下文注入，按故事标题、开端、讲述者、共享设定和当前快照构造本轮 prompt；同一轮 `/api/interactive/chat` 完成后原子写入 `turn` 与可选 `state_delta`，故事舞台流式展示 narrative 并隐藏状态元数据
+- 互动模式：story 子模式改用独立 Agent Runner 与专用系统 prompt，和 IDE 模式隔离；互动故事 Agent 禁止调用 `write_file` / `edit_file` / `delete_file` 等写文件工具，故事正文只能流式输出到主屏幕并由后端写入 story jsonl
 - 工程配置：忽略本地 `.worktrees/` 目录，便于在隔离 worktree 中开发大功能而不污染主工作区
 - 后端 `config`：默认 `NovaDir` 由 `~/.nova` 改为后端运行目录下的 `./.nova`，未设置 `NOVA_DIR` 环境变量时使用该相对路径解析为绝对路径；同步更新 `config.template.toml`、`README.md` 中的示例及测试 `TestLoadDefaultsNovaDirToHomeNova`
 

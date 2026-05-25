@@ -15,3 +15,18 @@ func BuildInstruction(cfg *config.Config, state *book.State) string {
 		StateContext:  state.CompactContext(),
 	})
 }
+
+func BuildInteractiveStoryInstruction(cfg *config.Config, state *book.State) string {
+	workspace := ""
+	if cfg != nil {
+		workspace = cfg.Workspace
+	}
+	creator := ""
+	if state != nil {
+		creator = state.ReadCreatorPrompt()
+	}
+	return prompts.BuildInteractiveStorySystemInstruction(prompts.InteractiveStorySystemInstructionInput{
+		CreatorPrompt: creator,
+		Workspace:     workspace,
+	})
+}

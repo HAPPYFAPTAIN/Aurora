@@ -20,6 +20,24 @@ import (
 
 // Build 构建小说创作 Agent（deep agent + 文件系统工具 + Skill 中间件）。
 func Build(ctx context.Context, cfg *config.Config, state *book.State) (adk.Agent, error) {
+	return buildDeepAgent(ctx, cfg, "NovaAgent", "AI 小说创作助手", BuildInstruction(cfg, state), true, nil)
+}
+
+func BuildInteractiveStory(ctx context.Context, cfg *config.Config, state *book.State) (adk.Agent, error) {
+	return buildDeepAgent(ctx, cfg, "NovaInteractiveStoryAgent", "AI 互动故事叙事助手", BuildInteractiveStoryInstruction(cfg, state), false, []adk.ChatModelAgentMiddleware{
+		newInteractiveStoryToolMiddleware(),
+	})
+}
+
+func buildDeepAgent(
+	ctx context.Context,
+	cfg *config.Config,
+	name string,
+	description string,
+	instruction string,
+	enableSkills bool,
+	extraHandlers []adk.ChatModelAgentMiddleware,
+) (adk.Agent, error) {
 	cm, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
 		APIKey:  cfg.OpenAIAPIKey,
 		Model:   cfg.OpenAIModel,
@@ -35,25 +53,28 @@ func Build(ctx context.Context, cfg *config.Config, state *book.State) (adk.Agen
 	}
 
 	var handlers []adk.ChatModelAgentMiddleware
-	if skillsDir := ResolveSkillsDir(cfg.SkillsDir); skillsDir != "" {
-		skillBackend, sbErr := skill.NewBackendFromFilesystem(ctx, &skill.BackendFromFilesystemConfig{
-			Backend: backend,
-			BaseDir: skillsDir,
-		})
-		if sbErr == nil {
-			skillMw, smErr := skill.NewMiddleware(ctx, &skill.Config{Backend: skillBackend})
-			if smErr == nil {
-				handlers = append(handlers, skillMw)
+	if enableSkills {
+		if skillsDir := ResolveSkillsDir(cfg.SkillsDir); skillsDir != "" {
+			skillBackend, sbErr := skill.NewBackendFromFilesystem(ctx, &skill.BackendFromFilesystemConfig{
+				Backend: backend,
+				BaseDir: skillsDir,
+			})
+			if sbErr == nil {
+				skillMw, smErr := skill.NewMiddleware(ctx, &skill.Config{Backend: skillBackend})
+				if smErr == nil {
+					handlers = append(handlers, skillMw)
+				}
 			}
 		}
 	}
+	handlers = append(handlers, extraHandlers...)
 	handlers = append(handlers, &safeToolMiddleware{})
 
 	return deep.New(ctx, &deep.Config{
-		Name:           "NovaAgent",
-		Description:    "AI 小说创作助手",
+		Name:           name,
+		Description:    description,
 		ChatModel:      cm,
-		Instruction:    BuildInstruction(cfg, state),
+		Instruction:    instruction,
 		Backend:        backend,
 		StreamingShell: backend,
 		MaxIteration:   50,

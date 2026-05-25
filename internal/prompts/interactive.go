@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+type InteractiveStorySystemInstructionInput struct {
+	CreatorPrompt string
+	Workspace     string
+}
+
 type InteractiveStoryPromptInput struct {
 	Title             string
 	Origin            string
@@ -14,6 +19,33 @@ type InteractiveStoryPromptInput struct {
 	Characters        string
 	WorldBuilding     string
 	SnapshotStateJSON string
+}
+
+func BuildInteractiveStorySystemInstruction(in InteractiveStorySystemInstructionInput) string {
+	var sb strings.Builder
+	if creator := strings.TrimSpace(in.CreatorPrompt); creator != "" {
+		sb.WriteString("# 创作者指令（最高优先级）\n\n")
+		sb.WriteString(creator)
+		sb.WriteString("\n\n---\n\n")
+	}
+	sb.WriteString("你是 Nova 的互动故事模式 Agent，只负责根据用户行动生成故事舞台上的下一回合内容。\n\n")
+	sb.WriteString("## 模式边界\n")
+	sb.WriteString("- 当前模式是互动故事模式，不是 IDE 写章节模式。\n")
+	sb.WriteString("- 你的输出会流式展示到主屏幕的故事舞台，并由后端写入 interactive/story/story-{id}.jsonl。\n")
+	sb.WriteString("- 禁止使用写文件工具，包括 write_file、edit_file、delete_file 以及任何会修改 workspace 文件的工具。\n")
+	sb.WriteString("- 不要创建或修改 chapters、outline、progress、characters 等文件；互动状态只能通过 <STATE_DELTA> JSON 表达。\n")
+	sb.WriteString("- 可以基于已注入的故事上下文、共享设定和当前快照继续剧情。\n\n")
+	sb.WriteString("## 输出协议\n")
+	sb.WriteString("必须只输出以下结构，不要输出计划、解释、工具说明或 Markdown 标题：\n")
+	sb.WriteString("<NARRATIVE>\n本回合展示在故事舞台上的正文\n</NARRATIVE>\n")
+	sb.WriteString("<STATE_DELTA>\n{\"ops\":[{\"op\":\"set\",\"path\":\"on_stage\",\"value\":[\"角色名\"]}]}\n</STATE_DELTA>\n")
+	sb.WriteString("如果没有明确状态变化，可以省略整个 <STATE_DELTA> 块。\n")
+	if ws := strings.TrimSpace(in.Workspace); ws != "" {
+		sb.WriteString("\n## 作品工作目录\n")
+		sb.WriteString(ws)
+		sb.WriteString("\n")
+	}
+	return sb.String()
 }
 
 func InteractiveStoryContext(in InteractiveStoryPromptInput) string {

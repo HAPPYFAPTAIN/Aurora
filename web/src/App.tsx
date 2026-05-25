@@ -447,7 +447,6 @@ function App() {
     <>
       <header className="flex h-7 shrink-0 items-center border-b border-[#303238] bg-[#202124] px-2 text-xs text-[#9aa0aa]">
         <div className="font-medium text-[#d7dbe2]">Nova</div>
-        <div className="ml-2 truncate text-[#7f8590]">小说 IDE</div>
         <div className="ml-3 flex items-center gap-1">
           <button
             type="button"
@@ -698,7 +697,6 @@ function App() {
   const statusBar = (
     <div className="flex h-6 shrink-0 items-center border-t border-[#303238] bg-[#1f2023] px-3 text-[11px] text-[#858b96]">
       <span>Nova v{APP_VERSION}</span>
-      <span className="ml-4">小说 IDE</span>
       <span className="ml-auto">{isStreaming ? '生成中' : '空闲'} · DeepSeek</span>
     </div>
   )

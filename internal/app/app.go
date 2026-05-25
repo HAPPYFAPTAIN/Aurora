@@ -22,19 +22,20 @@ import (
 type App struct {
 	cfg *config.Config
 
-	workspace             string
-	bookState             *book.State
-	bookService           *book.Service
-	interactive           *interactive.Store
-	sessionStore          *session.Store
-	session               *session.Session
-	agentRunner           *adk.Runner
-	chatService           *agent.ChatService
-	bookRegistry          *BookRegistry
-	bookMetaStore         *BookMetaStore
-	gitService            *book.GitService
-	activeTask            *Task
-	activeInteractiveTask *Task
+	workspace              string
+	bookState              *book.State
+	bookService            *book.Service
+	interactive            *interactive.Store
+	sessionStore           *session.Store
+	session                *session.Session
+	agentRunner            *adk.Runner
+	interactiveStoryRunner *adk.Runner
+	chatService            *agent.ChatService
+	bookRegistry           *BookRegistry
+	bookMetaStore          *BookMetaStore
+	gitService             *book.GitService
+	activeTask             *Task
+	activeInteractiveTask  *Task
 
 	mu sync.RWMutex
 }
@@ -78,6 +79,7 @@ func New(ctx context.Context, cfg *config.Config) (*App, error) {
 	app.sessionStore = runtime.sessionStore
 	app.session = runtime.session
 	app.agentRunner = runtime.agentRunner
+	app.interactiveStoryRunner = runtime.interactiveStoryRunner
 	app.gitService = runtime.gitService
 	return app, nil
 }
@@ -217,7 +219,7 @@ func (a *App) AppendInteractiveTurn(storyID, branchID, user, narrative string) (
 // StartInteractiveTask 启动互动模式 Agent 任务，输出写回 interactive/story。
 func (a *App) StartInteractiveTask(storyID, branchID, message string) *Task {
 	a.mu.Lock()
-	if a.agentRunner == nil || a.interactive == nil {
+	if a.interactiveStoryRunner == nil || a.interactive == nil {
 		a.mu.Unlock()
 		log.Printf("[interactive-agent-task] 未选择 workspace，无法启动任务")
 		return nil
@@ -227,7 +229,7 @@ func (a *App) StartInteractiveTask(storyID, branchID, message string) *Task {
 		a.activeInteractiveTask.Abort()
 	}
 
-	runner := a.agentRunner
+	runner := a.interactiveStoryRunner
 	store := a.interactive
 	bookService := a.bookService
 	chatService := a.chatService
@@ -310,6 +312,7 @@ func (a *App) SwitchWorkspace(ctx context.Context, path string) (string, error) 
 	a.sessionStore = runtime.sessionStore
 	a.session = runtime.session
 	a.agentRunner = runtime.agentRunner
+	a.interactiveStoryRunner = runtime.interactiveStoryRunner
 	a.gitService = runtime.gitService
 	a.cfg.Workspace = runtime.workspace
 	a.mu.Unlock()
@@ -798,14 +801,15 @@ func (a *App) UpdateWorkspaceSettings(s config.Settings) (config.LayeredSettings
 }
 
 type runtimeState struct {
-	workspace    string
-	bookState    *book.State
-	bookService  *book.Service
-	interactive  *interactive.Store
-	sessionStore *session.Store
-	session      *session.Session
-	agentRunner  *adk.Runner
-	gitService   *book.GitService
+	workspace              string
+	bookState              *book.State
+	bookService            *book.Service
+	interactive            *interactive.Store
+	sessionStore           *session.Store
+	session                *session.Session
+	agentRunner            *adk.Runner
+	interactiveStoryRunner *adk.Runner
+	gitService             *book.GitService
 }
 
 func buildRuntime(ctx context.Context, cfg *config.Config, workspace string) (*runtimeState, error) {
@@ -834,15 +838,20 @@ func buildRuntime(ctx context.Context, cfg *config.Config, workspace string) (*r
 	if err != nil {
 		return nil, fmt.Errorf("构建 Agent 失败: %w", err)
 	}
+	interactiveStoryAgent, err := agent.BuildInteractiveStory(ctx, &runtimeCfg, state)
+	if err != nil {
+		return nil, fmt.Errorf("构建互动故事 Agent 失败: %w", err)
+	}
 
 	return &runtimeState{
-		workspace:    absWorkspace,
-		bookState:    state,
-		bookService:  book.NewService(absWorkspace),
-		interactive:  interactive.NewStore(absWorkspace),
-		sessionStore: store,
-		session:      sess,
-		agentRunner:  agent.NewRunner(ctx, builtAgent),
-		gitService:   book.NewGitService(absWorkspace),
+		workspace:              absWorkspace,
+		bookState:              state,
+		bookService:            book.NewService(absWorkspace),
+		interactive:            interactive.NewStore(absWorkspace),
+		sessionStore:           store,
+		session:                sess,
+		agentRunner:            agent.NewRunner(ctx, builtAgent),
+		interactiveStoryRunner: agent.NewRunner(ctx, interactiveStoryAgent),
+		gitService:             book.NewGitService(absWorkspace),
 	}, nil
 }
