@@ -44,6 +44,7 @@ export interface Snapshot {
   branch_id: string
   turns: TurnEvent[]
   state: Record<string, unknown>
+  graph?: StoryGraph
 }
 
 export interface BranchSummary {
@@ -54,6 +55,22 @@ export interface BranchSummary {
   title?: string
   created_at: string
   current: boolean
+}
+
+export interface PlotNode {
+  id: string
+  parent_id?: string
+  branch_id: string
+  title: string
+  summary: string
+  ts: string
+  current: boolean
+  head: boolean
+}
+
+export interface StoryGraph {
+  nodes: PlotNode[]
+  branches: BranchSummary[]
 }
 
 export type InteractiveSSEEvent = SSEEvent

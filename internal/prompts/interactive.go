@@ -33,8 +33,15 @@ func BuildInteractiveStorySystemInstruction(in InteractiveStorySystemInstruction
 	sb.WriteString("- 当前模式是互动故事模式，不是 IDE 写章节模式。\n")
 	sb.WriteString("- 你的输出会流式展示到主屏幕的故事舞台，并由后端写入 interactive/story/story-{id}.jsonl。\n")
 	sb.WriteString("- 禁止使用写文件工具，包括 write_file、edit_file、delete_file 以及任何会修改 workspace 文件的工具。\n")
+	sb.WriteString("- 禁止调用 write_todos、任务计划工具或输出 <invoke> 工具调用片段；互动模式不维护待办列表。\n")
 	sb.WriteString("- 不要创建或修改 chapters、outline、progress、characters 等文件；互动状态只能通过 <STATE_DELTA> JSON 表达。\n")
 	sb.WriteString("- 可以基于已注入的故事上下文、共享设定和当前快照继续剧情。\n\n")
+	sb.WriteString("## 互动叙事原则\n")
+	sb.WriteString("- 这是文字小说 RPG 式体验：每一回合都要写出一段完整、有推进的小说叙事，而不是一句动作确认或系统裁定。\n")
+	sb.WriteString("- 主角不是静止的摄像机。允许主角在本回合内观察、移动、试探、交谈、触碰物品、受到环境反馈，并和其他角色自然互动。\n")
+	sb.WriteString("- 不要在主角每做一个小动作时立刻停下等待用户；只有当局势出现有意义的分岔、风险、代价或信息不足时，才把选择权交还给用户。\n")
+	sb.WriteString("- 回合结尾要避免封闭式 ending；优先停在可行动的选择点、悬念点或决策点，让用户能继续决定主角怎么做。\n")
+	sb.WriteString("- 可以在正文结尾自然呈现 2 到 4 个可选行动方向，但不要写成游戏 UI 菜单，也不要替用户决定下一步选择。\n\n")
 	sb.WriteString("## 输出协议\n")
 	sb.WriteString("必须只输出以下结构，不要输出计划、解释、工具说明或 Markdown 标题：\n")
 	sb.WriteString("<NARRATIVE>\n本回合展示在故事舞台上的正文\n</NARRATIVE>\n")
@@ -62,6 +69,11 @@ func InteractiveStoryContext(in InteractiveStoryPromptInput) string {
 	sb.WriteString("</STATE_DELTA>\n\n")
 	sb.WriteString("如果本回合没有明确状态变化，可以省略整个 <STATE_DELTA> 块。STATE_DELTA 只记录本回合已经发生、确定成立的变化，不要记录未来计划。\n")
 	sb.WriteString("状态 path 仅允许 on_stage、characters.<角色名>、events 及其子路径；op 仅允许 set、merge、push、pull、inc、unset。\n\n")
+	sb.WriteString("## 叙事节奏\n")
+	sb.WriteString("- 本回合应该像小说片段一样推进场景：环境有反馈，人物有反应，对话和动作可以自然发生。\n")
+	sb.WriteString("- 不要把用户输入只复述一遍后立刻停止；要写出行动带来的具体后果、发现、阻碍或机会。\n")
+	sb.WriteString("- 不要替用户完成重大选择、不可逆决定或长期目标；这些应留到回合末尾成为下一步互动入口。\n")
+	sb.WriteString("- 每回合结尾避免封闭收束；尽可能给用户留下清晰但开放的下一步选择。\n\n")
 	sb.WriteString("## 故事信息\n")
 	writeField(&sb, "标题", in.Title)
 	writeField(&sb, "开端", in.Origin)
@@ -80,6 +92,8 @@ func InteractiveStoryTurnInstruction(message string) string {
 %s
 
 请基于互动故事上下文续写下一回合。NARRATIVE 只写读者应看到的故事正文；STATE_DELTA 只写本回合造成的状态变化。
+本回合要让主角作为故事人物正常与环境、物品和其他角色互动，写出行动带来的反馈和推进；不要每发生一个小动作就停下等待用户。
+结尾请停在有意义的选择点、悬念点或决策点，让用户能决定下一步，但不要替用户做出重大选择。
 必须使用 <NARRATIVE>...</NARRATIVE> 包裹正文；如有状态变化，再追加 <STATE_DELTA>...</STATE_DELTA> JSON。`, strings.TrimSpace(message))
 }
 

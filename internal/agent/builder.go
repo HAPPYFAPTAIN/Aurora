@@ -20,11 +20,11 @@ import (
 
 // Build 构建小说创作 Agent（deep agent + 文件系统工具 + Skill 中间件）。
 func Build(ctx context.Context, cfg *config.Config, state *book.State) (adk.Agent, error) {
-	return buildDeepAgent(ctx, cfg, "NovaAgent", "AI 小说创作助手", BuildInstruction(cfg, state), true, nil)
+	return buildDeepAgent(ctx, cfg, "NovaAgent", "AI 小说创作助手", BuildInstruction(cfg, state), true, false, nil)
 }
 
 func BuildInteractiveStory(ctx context.Context, cfg *config.Config, state *book.State) (adk.Agent, error) {
-	return buildDeepAgent(ctx, cfg, "NovaInteractiveStoryAgent", "AI 互动故事叙事助手", BuildInteractiveStoryInstruction(cfg, state), false, []adk.ChatModelAgentMiddleware{
+	return buildDeepAgent(ctx, cfg, "NovaInteractiveStoryAgent", "AI 互动故事叙事助手", BuildInteractiveStoryInstruction(cfg, state), false, true, []adk.ChatModelAgentMiddleware{
 		newInteractiveStoryToolMiddleware(),
 	})
 }
@@ -36,6 +36,7 @@ func buildDeepAgent(
 	description string,
 	instruction string,
 	enableSkills bool,
+	disableWriteTodos bool,
 	extraHandlers []adk.ChatModelAgentMiddleware,
 ) (adk.Agent, error) {
 	cm, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
@@ -71,14 +72,15 @@ func buildDeepAgent(
 	handlers = append(handlers, &safeToolMiddleware{})
 
 	return deep.New(ctx, &deep.Config{
-		Name:           name,
-		Description:    description,
-		ChatModel:      cm,
-		Instruction:    instruction,
-		Backend:        backend,
-		StreamingShell: backend,
-		MaxIteration:   50,
-		Handlers:       handlers,
+		Name:              name,
+		Description:       description,
+		ChatModel:         cm,
+		Instruction:       instruction,
+		Backend:           backend,
+		StreamingShell:    backend,
+		WithoutWriteTodos: disableWriteTodos,
+		MaxIteration:      50,
+		Handlers:          handlers,
 		ToolsConfig: adk.ToolsConfig{
 			ToolsNodeConfig: compose.ToolsNodeConfig{
 				// 当 LLM 幻觉出不存在的工具时，把错误信息以 ToolMessage 形式回传，

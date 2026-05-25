@@ -8,12 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 互动模式：剧情分支基于 story JSONL 的 `parent_id` 构建剧情节点图，snapshot 新增 `graph.nodes` / `graph.branches`，底部时间线改为 git graph 风格节点展示，并支持从任意剧情节点确认创建新剧情线后自动切换
 - 互动模式：故事舞台对话框支持 Enter 直接发送、Shift+Enter 换行，并新增生成中的中断按钮与 `/api/interactive/chat/abort` 后端中断接口
 - 互动模式：故事舞台对话内容新增随主题文字色变化的对白文字高亮，支持 `“”`、`「」` 和英文双引号 `""` 包裹的对白，历史回合与流式输出均生效
 - 后端 API：新增 `GET /api/workspace/summary`，统计当前书籍标题、章节数、全书字数以及每章标题、字数、状态和更新时间，供 WebUI 写作工作台展示进度
 
 ### Fixed
 
+- 后端 `interactive`：修复分支快照按分支名粗过滤导致从旧节点分叉时带入原分支后续剧情的问题，改为从目标 head 沿 `parent_id` 父链恢复 turn 与 state_delta
+- 互动模式：关闭 story 子模式 Deep Agent 内置 `write_todos` 工具，并在专用系统提示中禁止输出 `<invoke>`/待办工具调用，避免模型按计划工具格式生成 malformed tool call 导致流式任务异常中断
 - 后端 `app`：每次启动普通对话或互动故事对话前刷新 Agent Runner，重新读取当前 workspace 的 `CREATOR.md` 与作品状态，确保用户修改创作者指令后下一轮对话立即生效
 - WebUI：修复作品统计接口返回 `chapters: null` 时编辑区 Tab 标题渲染崩溃的问题，前端会将空章节列表标准化为空数组并回退显示文件名
 - 互动模式：修复前端刷新后故事舞台未加载已持久化回合内容的问题，首次加载时按故事元信息的当前分支获取快照，避免强制请求 `branch=main` 导致空结果
@@ -21,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- 互动模式：强化 story 子模式叙事提示，要求 Agent 以文字小说 RPG 节奏推进回合，让主角在叙事中自然与环境、物品和角色互动，并在回合结尾停留于开放的选择点或悬念点，避免生成封闭式 ending 或每个小动作都停下等待用户
 - WebUI：统一原生滚动条与 Radix ScrollArea 的深色主题样式，降低系统默认滚动条在设置弹窗、侧栏和对话区中的突兀感
 - WebUI：互动模式 Activity Bar 与 IDE 模式按钮隔离，并新增互动资料库、场景记忆左右面板 toggle；设置入口改为可调整大小的大型全局弹窗，在两种模式下均可打开，弹窗内按 IDE/互动模式分 tab 展示，公共配置在两个 tab 下保持可见
 - WebUI：IDE 模式左侧新增「作品目录 / 项目文件」切换，章节目录展示章节标题、字数和状态；编辑器标题栏和底部状态栏展示当前章节与全书统计；创作 Agent 空状态新增续写、润色、摘要和一致性检查快捷动作

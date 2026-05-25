@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -166,6 +167,23 @@ type Snapshot struct {
 	BranchID string         `json:"branch_id"`
 	Turns    []TurnEvent    `json:"turns"`
 	State    map[string]any `json:"state"`
+	Graph    StoryGraph     `json:"graph"`
+}
+
+type StoryGraph struct {
+	Nodes    []PlotNode      `json:"nodes"`
+	Branches []BranchSummary `json:"branches"`
+}
+
+type PlotNode struct {
+	ID       string `json:"id"`
+	ParentID string `json:"parent_id,omitempty"`
+	BranchID string `json:"branch_id"`
+	Title    string `json:"title"`
+	Summary  string `json:"summary"`
+	Ts       string `json:"ts"`
+	Current  bool   `json:"current"`
+	Head     bool   `json:"head"`
 }
 
 type StoryContext struct {
@@ -540,19 +558,7 @@ func (s *Store) Branches(storyID string) ([]BranchSummary, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := make([]BranchSummary, 0, len(meta.Branches))
-	for id, branch := range meta.Branches {
-		result = append(result, BranchSummary{
-			ID:        id,
-			Head:      branch.Head,
-			From:      branch.From,
-			FromEvent: branch.FromEvent,
-			Title:     branch.Title,
-			CreatedAt: branch.CreatedAt,
-			Current:   id == meta.CurrentBranch,
-		})
-	}
-	return result, nil
+	return branchSummaries(meta), nil
 }
 
 func (s *Store) Snapshot(storyID, branchID string) (Snapshot, error) {
@@ -570,25 +576,20 @@ func snapshotFromLines(storyID, branchID string, meta StoryMeta, lines []map[str
 	if branchID == "" {
 		branchID = meta.CurrentBranch
 	}
+	branch, ok := meta.Branches[branchID]
+	if !ok {
+		return Snapshot{}, fmt.Errorf("分支不存在: %s", branchID)
+	}
 	state := map[string]any{
 		"on_stage":   []any{},
 		"characters": map[string]any{},
 		"events":     []any{},
 	}
 	snapshot := Snapshot{StoryID: storyID, BranchID: branchID, State: state}
-	allowedBranches := map[string]bool{branchID: true}
-	if branchID != "main" {
-		branch := meta.Branches[branchID]
-		if branch.From != "" {
-			allowedBranches[branch.From] = true
-		}
-	}
-	for _, raw := range lines {
+	eventsByID := eventsByID(lines)
+	path, pathSet := eventPath(branch.Head, eventsByID)
+	for _, raw := range path {
 		eventType, _ := raw["type"].(string)
-		eventBranch, _ := raw["branch_id"].(string)
-		if !allowedBranches[eventBranch] {
-			continue
-		}
 		switch eventType {
 		case "turn":
 			var turn TurnEvent
@@ -606,7 +607,132 @@ func snapshotFromLines(storyID, branchID string, meta StoryMeta, lines []map[str
 			}
 		}
 	}
+	snapshot.Graph = buildStoryGraph(meta, lines, eventsByID, pathSet)
 	return snapshot, nil
+}
+
+func eventsByID(lines []map[string]any) map[string]map[string]any {
+	events := make(map[string]map[string]any, len(lines))
+	for _, raw := range lines {
+		id, _ := raw["id"].(string)
+		if id != "" {
+			events[id] = raw
+		}
+	}
+	return events
+}
+
+func eventPath(head string, events map[string]map[string]any) ([]map[string]any, map[string]bool) {
+	reversed := make([]map[string]any, 0)
+	inPath := map[string]bool{}
+	for id := head; id != ""; {
+		raw, ok := events[id]
+		if !ok || inPath[id] {
+			break
+		}
+		reversed = append(reversed, raw)
+		inPath[id] = true
+		id = parentIDFromRaw(raw)
+	}
+	for i, j := 0, len(reversed)-1; i < j; i, j = i+1, j-1 {
+		reversed[i], reversed[j] = reversed[j], reversed[i]
+	}
+	return reversed, inPath
+}
+
+func buildStoryGraph(meta StoryMeta, lines []map[string]any, events map[string]map[string]any, currentPath map[string]bool) StoryGraph {
+	headTurns := map[string]bool{}
+	for _, branch := range meta.Branches {
+		if headTurn := nearestTurnAncestor(branch.Head, events); headTurn != "" {
+			headTurns[headTurn] = true
+		}
+	}
+	nodes := make([]PlotNode, 0)
+	for _, raw := range lines {
+		if eventType, _ := raw["type"].(string); eventType != "turn" {
+			continue
+		}
+		var turn TurnEvent
+		if err := mapToStruct(raw, &turn); err != nil {
+			continue
+		}
+		nodes = append(nodes, PlotNode{
+			ID:       turn.ID,
+			ParentID: parentIDFromRaw(raw),
+			BranchID: turn.BranchID,
+			Title:    compactText(turn.User, 24),
+			Summary:  compactText(turn.Narrative, 72),
+			Ts:       turn.Ts,
+			Current:  currentPath[turn.ID],
+			Head:     headTurns[turn.ID],
+		})
+	}
+	return StoryGraph{Nodes: nodes, Branches: branchSummaries(meta)}
+}
+
+func nearestTurnAncestor(head string, events map[string]map[string]any) string {
+	for id := head; id != ""; {
+		raw, ok := events[id]
+		if !ok {
+			return ""
+		}
+		if eventType, _ := raw["type"].(string); eventType == "turn" {
+			return id
+		}
+		id = parentIDFromRaw(raw)
+	}
+	return ""
+}
+
+func branchSummaries(meta StoryMeta) []BranchSummary {
+	result := make([]BranchSummary, 0, len(meta.Branches))
+	for id, branch := range meta.Branches {
+		result = append(result, BranchSummary{
+			ID:        id,
+			Head:      branch.Head,
+			From:      branch.From,
+			FromEvent: branch.FromEvent,
+			Title:     branch.Title,
+			CreatedAt: branch.CreatedAt,
+			Current:   id == meta.CurrentBranch,
+		})
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].ID == "main" {
+			return true
+		}
+		if result[j].ID == "main" {
+			return false
+		}
+		return result[i].CreatedAt < result[j].CreatedAt
+	})
+	return result
+}
+
+func parentIDFromRaw(raw map[string]any) string {
+	switch value := raw["parent_id"].(type) {
+	case string:
+		return value
+	case nil:
+		return ""
+	default:
+		return strings.TrimSpace(fmt.Sprint(value))
+	}
+}
+
+func compactText(text string, limit int) string {
+	text = strings.Join(strings.Fields(strings.TrimSpace(text)), " ")
+	if text == "" {
+		return "未命名节点"
+	}
+	runes := []rune(text)
+	if len(runes) <= limit {
+		return text
+	}
+	if limit <= 1 {
+		return string(runes[:limit])
+	}
+	return string(runes[:limit-1]) + "…"
 }
 
 func (s *Store) storyDir() string {

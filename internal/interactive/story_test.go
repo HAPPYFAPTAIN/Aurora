@@ -225,6 +225,49 @@ func TestCreateAndSwitchBranch(t *testing.T) {
 	}
 }
 
+func TestBranchSnapshotFollowsParentChain(t *testing.T) {
+	store := NewStore(t.TempDir())
+	story, err := store.CreateStory(CreateStoryRequest{Title: "父链故事", StoryTellerID: "classic"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := store.AppendTurn(story.ID, AppendTurnRequest{BranchID: "main", User: "进入密林", Narrative: "树影吞没了来路。"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := store.AppendTurn(story.ID, AppendTurnRequest{BranchID: "main", User: "继续深入", Narrative: "前方出现断桥。"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	branch, err := store.CreateBranch(story.ID, CreateBranchRequest{ParentEventID: first.ID, Title: "折返路线"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.AppendTurn(story.ID, AppendTurnRequest{BranchID: branch.ID, User: "折返回营地", Narrative: "你在旧营地发现脚印。"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	snapshot, err := store.Snapshot(story.ID, branch.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshot.Turns) != 2 {
+		t.Fatalf("branch snapshot should contain only parent chain turns, got %#v", snapshot.Turns)
+	}
+	if snapshot.Turns[0].ID != first.ID || snapshot.Turns[1].BranchID != branch.ID {
+		t.Fatalf("unexpected branch path: %#v", snapshot.Turns)
+	}
+	for _, turn := range snapshot.Turns {
+		if turn.ID == second.ID {
+			t.Fatalf("snapshot included future sibling turn: %#v", snapshot.Turns)
+		}
+	}
+	if len(snapshot.Graph.Nodes) != 3 {
+		t.Fatalf("graph should expose all plot nodes, got %#v", snapshot.Graph.Nodes)
+	}
+}
+
 func TestUpdateAndDeleteStory(t *testing.T) {
 	root := t.TempDir()
 	store := NewStore(root)

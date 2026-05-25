@@ -83,9 +83,9 @@ export function InteractiveLayout({
     await reloadSnapshot(branchId)
   }
 
-  const handleCreateBranch = async (turnId: string) => {
+  const handleCreateBranch = async (turnId: string, title: string) => {
     if (!currentStoryId) return
-    const branch = await createInteractiveBranch(currentStoryId, { parent_event_id: turnId, title: `分支 ${branches.length + 1}` })
+    const branch = await createInteractiveBranch(currentStoryId, { parent_event_id: turnId, title })
     setCurrentBranchId(branch.id)
     await reloadSnapshot(branch.id)
   }
