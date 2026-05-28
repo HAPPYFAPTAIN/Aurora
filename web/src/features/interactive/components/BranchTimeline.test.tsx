@@ -85,6 +85,39 @@ describe('BranchTimeline', () => {
     expect(canvas).toHaveAttribute('data-edge-count', '2')
   })
 
+  it('renders the workspace view without a manual expand click', () => {
+    const onBackToStory = vi.fn()
+
+    render(
+      <BranchTimeline
+        variant="workspace"
+        currentBranchId="main"
+        branches={[{ id: 'main', head: 'ev_2', created_at: '', current: true }]}
+        snapshot={{
+          story_id: 'st_1',
+          branch_id: 'main',
+          turns: [],
+          state: {},
+          graph: {
+            branches: [{ id: 'main', head: 'ev_2', created_at: '', current: true }],
+            nodes: [
+              { id: 'ev_1', branch_id: 'main', title: '第一幕', summary: '', ts: '', current: true, head: false },
+              { id: 'ev_2', parent_id: 'ev_1', branch_id: 'main', title: '第二幕', summary: '', ts: '', current: true, head: true },
+            ],
+          },
+        }}
+        onSwitchBranch={vi.fn()}
+        onCreateBranch={vi.fn()}
+        onDeleteBranch={vi.fn()}
+        onBackToStory={onBackToStory}
+      />,
+    )
+
+    expect(screen.getByTestId('branch-graph-canvas')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /返回剧情/ }))
+    expect(onBackToStory).toHaveBeenCalled()
+  })
+
   it('does not let canvas drag handling suppress node clicks', () => {
     render(
       <BranchTimeline

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
-import { ChevronDown, ChevronUp, GitBranch, Move, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronUp, GitBranch, Move, Plus, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -16,6 +16,8 @@ interface BranchTimelineProps {
   expanded?: boolean
   fill?: boolean
   onExpandedChange?: (expanded: boolean) => void
+  variant?: 'panel' | 'workspace'
+  onBackToStory?: () => void
 }
 
 interface TimelineRow {
@@ -103,6 +105,8 @@ export function BranchTimeline({
   expanded: controlledExpanded,
   fill = false,
   onExpandedChange,
+  variant = 'panel',
+  onBackToStory,
 }: BranchTimelineProps) {
   const [internalExpanded, setInternalExpanded] = useState(false)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
@@ -119,7 +123,8 @@ export function BranchTimeline({
   const selectedNode = graphNodes.find((node) => node.id === selectedNodeId) ||
     (selectedNodeSnapshot?.id === selectedNodeId ? selectedNodeSnapshot : null)
   const createSourceNode = branchSourceNode || selectedNode
-  const expanded = controlledExpanded ?? internalExpanded
+  const workspaceMode = variant === 'workspace'
+  const expanded = workspaceMode ? true : controlledExpanded ?? internalExpanded
   const scrollSize = useElementSize(scrollRef, expanded)
   useDragScroll(scrollRef, expanded)
   const emptyBranchCount = graphBranches.filter((branch) => isEmptyBranch(branch, graphNodes)).length
@@ -145,6 +150,7 @@ export function BranchTimeline({
   }, [currentPositionedNode, expanded])
 
   const setExpanded = (nextExpanded: boolean) => {
+    if (workspaceMode) return
     if (controlledExpanded === undefined) setInternalExpanded(nextExpanded)
     onExpandedChange?.(nextExpanded)
   }
@@ -196,13 +202,28 @@ export function BranchTimeline({
   }
 
   return (
-    <div className={`${fill ? 'h-full min-h-0' : expanded ? 'h-[min(260px,calc(100vh-96px))] min-h-[180px]' : 'h-[48px]'} border-t border-[var(--nova-border)] bg-[var(--nova-surface)] px-3 py-2 transition-[height] sm:px-4`}>
+    <div className={`${workspaceMode ? 'h-full min-h-0 border-0 p-4' : `${fill ? 'h-full min-h-0' : expanded ? 'h-[min(260px,calc(100vh-96px))] min-h-[180px]' : 'h-[48px]'} border-t px-3 py-2 transition-[height] sm:px-4`} flex flex-col border-[var(--nova-border)] bg-[var(--nova-surface)]`}>
       <div className="flex items-center justify-between gap-2 text-xs text-[var(--nova-text-faint)]">
-        <button type="button" className="nova-nav-item flex items-center gap-1.5 rounded-[var(--nova-radius)] px-1.5 py-1 font-medium text-[var(--nova-text-muted)] hover:text-[var(--nova-text)]" onClick={() => setExpanded(!expanded)}>
-          <GitBranch className="h-3.5 w-3.5 text-[var(--nova-accent-blue)]" />
-          剧情路线图
-          {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
-        </button>
+        {workspaceMode ? (
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex items-center gap-1.5 rounded-[var(--nova-radius)] px-1.5 py-1 font-medium text-[var(--nova-text)]">
+              <GitBranch className="h-3.5 w-3.5 text-[var(--nova-accent-blue)]" />
+              剧情路线图
+            </div>
+            {onBackToStory && (
+              <Button variant="outline" size="xs" className="nova-nav-item gap-1.5 border-[var(--nova-border)] bg-[var(--nova-surface-2)] text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]" onClick={onBackToStory}>
+                <ArrowLeft className="h-3.5 w-3.5" />
+                返回剧情
+              </Button>
+            )}
+          </div>
+        ) : (
+          <button type="button" className="nova-nav-item flex items-center gap-1.5 rounded-[var(--nova-radius)] px-1.5 py-1 font-medium text-[var(--nova-text-muted)] hover:text-[var(--nova-text)]" onClick={() => setExpanded(!expanded)}>
+            <GitBranch className="h-3.5 w-3.5 text-[var(--nova-accent-blue)]" />
+            剧情路线图
+            {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+          </button>
+        )}
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2 overflow-hidden">
           <span className="truncate text-[var(--nova-text-faint)]">{graphNodes.length || snapshot?.turns?.length || 0} 个剧情节点</span>
           {emptyBranchCount > 0 && <Badge variant="outline" className="hidden border-[var(--nova-accent)]/35 bg-[var(--nova-accent)]/10 text-[var(--nova-accent)] sm:inline-flex">{emptyBranchCount} 条空剧情线</Badge>}
@@ -216,7 +237,7 @@ export function BranchTimeline({
       </div>
 
       {expanded && (
-        <div className="mt-2 flex h-[calc(100%-32px)] min-h-0 flex-col overflow-hidden rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)] shadow-[var(--nova-shadow)]">
+        <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)] shadow-[var(--nova-shadow)]">
           <div className="nova-topbar flex min-h-10 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-1.5 sm:px-4">
             <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
               {layout.rows.map((row) => (

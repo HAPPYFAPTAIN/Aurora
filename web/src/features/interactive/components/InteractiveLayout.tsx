@@ -1,19 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BookMarked, Database, GripHorizontal, GripVertical, MessageSquareText, PanelLeft, PanelRight, SlidersHorizontal } from 'lucide-react'
+import { useCallback, useEffect, useRef } from 'react'
+import { BookMarked, Database, GitBranch, GripHorizontal, GripVertical, MessageSquareText, PanelLeft, PanelRight, SlidersHorizontal } from 'lucide-react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
-import type { Layout, PanelImperativeHandle, PanelSize } from 'react-resizable-panels'
+import type { Layout } from 'react-resizable-panels'
 import { createInteractiveBranch, createInteractiveStory, deleteInteractiveBranch, deleteInteractiveStory, getInteractiveBranches, getInteractiveSnapshot, getInteractiveStories, getInteractiveTellers, switchInteractiveBranch, updateInteractiveStory } from '../api'
 import { useInteractiveStore } from '../stores/interactive-store'
-import type { BranchSummary, InteractiveSubmode, Snapshot } from '../types'
+import type { InteractiveSubmode } from '../types'
 import { BranchTimeline } from './BranchTimeline'
 import { SettingPanel, type SettingPanelMode } from './SettingPanel'
 import { SnapshotPanel } from './SnapshotPanel'
 import { StoryPicker } from './StoryPicker'
 import { StoryStage } from './StoryStage'
 import { TellerPicker } from './TellerPicker'
-
-const MAIN_VERTICAL_LAYOUT_KEY = 'nova-interactive-main-vertical'
-const TIMELINE_EXPANDED_KEY = 'nova-interactive-branch-timeline-expanded'
 
 interface InteractiveLayoutProps {
   workspace?: string
@@ -38,12 +35,6 @@ export function InteractiveLayout({
   const currentBranchSnapshot = snapshot?.story_id === currentStoryId && snapshot.branch_id === currentBranchId ? snapshot : null
   const snapshotStoryIdRef = useRef('')
   const snapshotRequestSeqRef = useRef(0)
-  const initialMainLayout = useMemo(() => readStoredLayout(MAIN_VERTICAL_LAYOUT_KEY), [])
-  const [timelineExpanded, setTimelineExpanded] = useState(readStoredTimelineExpanded)
-  const timelinePanelRef = useRef<PanelImperativeHandle | null>(null)
-  const timelineExpandedHeightRef = useRef(220)
-  const timelinePanelSyncedRef = useRef(false)
-  const preferredTimelineHeight = useMemo(() => estimateTimelineHeight(snapshot, branches), [branches, snapshot])
 
   useEffect(() => {
     snapshotStoryIdRef.current = snapshot?.story_id || ''
@@ -136,57 +127,15 @@ export function InteractiveLayout({
     await reloadStories()
   }
 
-  const handleTimelineExpandedChange = (nextExpanded: boolean) => {
-    setTimelineExpanded(nextExpanded)
-    storeTimelineExpanded(nextExpanded)
-    window.requestAnimationFrame(() => {
-      if (nextExpanded) {
-        const nextHeight = Math.max(180, timelineExpandedHeightRef.current, preferredTimelineHeight)
-        timelineExpandedHeightRef.current = nextHeight
-        timelinePanelRef.current?.resize(`${nextHeight}px`)
-      } else {
-        timelinePanelRef.current?.resize('48px')
-      }
-    })
-  }
-
-  const handleMainLayoutChanged = useCallback((layout: Layout) => {
-    storeLayout(MAIN_VERTICAL_LAYOUT_KEY, layout)
-    if (typeof layout?.['branch-timeline'] !== 'number') return
-    const expandedByLayout = isTimelineExpandedLayout(layout)
-    setTimelineExpanded((current) => {
-      if (current === expandedByLayout) return current
-      storeTimelineExpanded(expandedByLayout)
-      return expandedByLayout
-    })
-  }, [])
-
-  const handleTimelineResize = (size: PanelSize) => {
-    if (timelineExpanded) timelineExpandedHeightRef.current = Math.max(180, size.inPixels)
-  }
-
-  useEffect(() => {
-    if (!timelineExpanded) {
-      timelinePanelSyncedRef.current = false
-      return
-    }
-    if (timelinePanelSyncedRef.current && preferredTimelineHeight <= timelineExpandedHeightRef.current + 24) return
-    const nextHeight = Math.max(180, timelineExpandedHeightRef.current, preferredTimelineHeight)
-    timelineExpandedHeightRef.current = nextHeight
-    timelinePanelSyncedRef.current = true
-    window.requestAnimationFrame(() => {
-      timelinePanelRef.current?.resize(`${nextHeight}px`)
-    })
-  }, [preferredTimelineHeight, timelineExpanded])
-
   const mainTabs: Array<{ value: InteractiveSubmode; label: string; icon: typeof MessageSquareText }> = [
     { value: 'story', label: '剧情', icon: MessageSquareText },
+    { value: 'timeline', label: '剧情路线图', icon: GitBranch },
     { value: 'lore', label: '资料库', icon: Database },
     { value: 'creator', label: '创作者', icon: BookMarked },
     { value: 'teller', label: '讲述者', icon: SlidersHorizontal },
   ]
-  const settingMode: SettingPanelMode = submode === 'story' ? 'lore' : submode
-  const settingsWorkspaceVisible = submode !== 'story'
+  const settingMode: SettingPanelMode = submode === 'story' || submode === 'timeline' ? 'lore' : submode
+  const settingsWorkspaceVisible = submode !== 'story' && submode !== 'timeline'
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--nova-bg)] text-[var(--nova-text)]">
       <div data-testid="interactive-shell" className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--nova-bg)]">
@@ -262,57 +211,39 @@ export function InteractiveLayout({
                 onTellersChange={setTellers}
               />
             ) : (
-              <Group
-                id={MAIN_VERTICAL_LAYOUT_KEY}
-                defaultLayout={initialMainLayout}
-                onLayoutChanged={handleMainLayoutChanged}
-                orientation="vertical"
-                className="min-h-0 flex-1"
-              >
-                <Panel id="stage-area" minSize="240px" className="min-h-0">
-                  <Group
-                    id="nova-interactive-horizontal"
-                    defaultLayout={readStoredLayout('nova-interactive-horizontal')}
-                    onLayoutChanged={(layout) => storeLayout('nova-interactive-horizontal', layout)}
-                    orientation="horizontal"
-                    className="min-h-0"
-                  >
-                    <Panel id="story-stage" minSize="240px" className="min-w-0">
-                      <StoryStage workspace={workspace} storyId={currentStoryId} branchId={currentBranchId} snapshot={currentBranchSnapshot} onDone={reloadSnapshot} />
-                    </Panel>
-                    {rightPanelVisible && (
-                      <>
-                        <InteractiveResizeHandle direction="vertical" label="调整场景记忆宽度" />
-                        <Panel id="snapshot" defaultSize="320px" minSize="180px" maxSize="45%" className="min-w-0">
-                          <SnapshotPanel snapshot={currentBranchSnapshot} />
-                        </Panel>
-                      </>
-                    )}
-                  </Group>
-                </Panel>
-                <InteractiveResizeHandle direction="horizontal" label="调整剧情路线图高度" prominent />
-                <Panel
-                  id="branch-timeline"
-                  defaultSize={timelineExpanded ? '220px' : '48px'}
-                  minSize={timelineExpanded ? '160px' : '48px'}
-                  maxSize="38%"
-                  className="min-h-0"
-                  onResize={handleTimelineResize}
-                  panelRef={timelinePanelRef}
+              submode === 'timeline' ? (
+                <BranchTimeline
+                  snapshot={snapshot}
+                  branches={branches}
+                  currentBranchId={currentBranchId}
+                  onSwitchBranch={handleSwitchBranch}
+                  onCreateBranch={handleCreateBranch}
+                  onDeleteBranch={handleDeleteBranch}
+                  fill
+                  variant="workspace"
+                  onBackToStory={() => setSubmode('story')}
+                />
+              ) : (
+                <Group
+                  id="nova-interactive-horizontal"
+                  defaultLayout={readStoredLayout('nova-interactive-horizontal')}
+                  onLayoutChanged={(layout) => storeLayout('nova-interactive-horizontal', layout)}
+                  orientation="horizontal"
+                  className="min-h-0 flex-1"
                 >
-                  <BranchTimeline
-                    snapshot={snapshot}
-                    branches={branches}
-                    currentBranchId={currentBranchId}
-                    onSwitchBranch={handleSwitchBranch}
-                    onCreateBranch={handleCreateBranch}
-                    onDeleteBranch={handleDeleteBranch}
-                    expanded={timelineExpanded}
-                    fill
-                    onExpandedChange={handleTimelineExpandedChange}
-                  />
-                </Panel>
-              </Group>
+                  <Panel id="story-stage" minSize="240px" className="min-w-0">
+                    <StoryStage workspace={workspace} storyId={currentStoryId} branchId={currentBranchId} snapshot={currentBranchSnapshot} onDone={reloadSnapshot} />
+                  </Panel>
+                  {rightPanelVisible && (
+                    <>
+                      <InteractiveResizeHandle direction="vertical" label="调整场景记忆宽度" />
+                      <Panel id="snapshot" defaultSize="320px" minSize="180px" maxSize="45%" className="min-w-0">
+                        <SnapshotPanel snapshot={currentBranchSnapshot} />
+                      </Panel>
+                    </>
+                  )}
+                </Group>
+              )
             )}
           </div>
         </div>
@@ -336,18 +267,6 @@ function InteractiveResizeHandle({ direction, label, prominent = false }: { dire
   )
 }
 
-function estimateTimelineHeight(snapshot: Snapshot | null, branches: BranchSummary[]) {
-  const graphNodes = snapshot?.graph?.nodes || []
-  const graphBranches = snapshot?.graph?.branches?.length ? snapshot.graph.branches : branches
-  const branchIds = new Set(graphBranches.map((branch) => branch.id))
-  for (const node of graphNodes) branchIds.add(node.branch_id)
-  const rowCount = Math.max(1, branchIds.size)
-  const contentHeight = 104 + rowCount * 56
-  const viewportHeight = typeof window === 'undefined' ? 720 : window.innerHeight
-  const maxHeight = Math.max(220, Math.floor(viewportHeight * 0.36))
-  return Math.min(maxHeight, Math.max(190, contentHeight))
-}
-
 function readStoredLayout(key: string): Layout | undefined {
   if (typeof window === 'undefined') return undefined
   const value = window.localStorage.getItem(key)
@@ -357,25 +276,6 @@ function readStoredLayout(key: string): Layout | undefined {
   } catch {
     return undefined
   }
-}
-
-function readStoredTimelineExpanded() {
-  if (typeof window !== 'undefined') {
-    const value = window.localStorage.getItem(TIMELINE_EXPANDED_KEY)
-    if (value === 'true') return true
-    if (value === 'false') return false
-  }
-  return true
-}
-
-function storeTimelineExpanded(expanded: boolean) {
-  if (typeof window === 'undefined') return
-  window.localStorage.setItem(TIMELINE_EXPANDED_KEY, expanded ? 'true' : 'false')
-}
-
-function isTimelineExpandedLayout(layout?: Layout) {
-  const timelineSize = layout?.['branch-timeline']
-  return typeof timelineSize === 'number' && timelineSize > 12
 }
 
 function storeLayout(key: string, layout: Layout) {

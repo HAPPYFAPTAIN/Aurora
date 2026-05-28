@@ -63,11 +63,18 @@ export function deleteInteractiveTeller(id: string): Promise<void> {
 }
 
 export async function runInteractiveTellerAgentStream(instruction: string, tellerId = ''): Promise<ReadableStream<InteractiveSSEEvent>> {
-  const res = await fetch('/api/interactive/tellers/agent/stream', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ instruction, teller_id: tellerId }),
-  })
+  let res: Response
+  try {
+    res = await fetch('/api/interactive/tellers/agent/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instruction, teller_id: tellerId }),
+    })
+  } catch (error) {
+    throw new Error(error instanceof Error && error.name === 'AbortError'
+      ? '讲述者 Agent 请求已中断'
+      : '讲述者 Agent 连接后端失败，请确认后端已重启并加载最新代码')
+  }
   if (!res.ok) {
     let message = `HTTP ${res.status}`
     try {

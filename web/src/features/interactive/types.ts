@@ -1,6 +1,6 @@
 import type { SSEEvent } from '@/lib/api'
 
-export type InteractiveSubmode = 'story' | 'lore' | 'creator' | 'teller'
+export type InteractiveSubmode = 'story' | 'timeline' | 'lore' | 'creator' | 'teller'
 
 export interface StorySummary {
   id: string

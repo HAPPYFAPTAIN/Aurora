@@ -17,6 +17,7 @@ describe('InteractiveLayout', () => {
     expect(screen.getByText('创作者')).toBeInTheDocument()
     expect(screen.getByTestId('interactive-shell')).not.toHaveClass('rounded-xl')
     expect(screen.getByTestId('story-stage-card')).not.toHaveClass('rounded-xl')
+    expect(screen.queryByTestId('branch-graph-canvas')).not.toBeInTheDocument()
   })
 
   it('can hide interactive side panels independently', async () => {
@@ -218,9 +219,7 @@ describe('InteractiveLayout', () => {
     expect(await screen.findByText('进入旧酒馆')).toBeInTheDocument()
     expect(screen.getByText('林川')).toBeInTheDocument()
 
-    if (!screen.queryByTestId('branch-graph-canvas')) {
-      fireEvent.click(screen.getByRole('button', { name: /剧情路线图/ }))
-    }
+    fireEvent.click(screen.getByRole('button', { name: /剧情路线图/ }))
     fireEvent.click(await screen.findByText('侧巷'))
     await waitFor(() => expect(switchCalls).toBeGreaterThan(0))
 
@@ -230,6 +229,7 @@ describe('InteractiveLayout', () => {
     releaseAltSnapshot()
     await waitFor(() => expect(snapshotBranches).toContain('br_alt'))
 
+    fireEvent.click(screen.getByRole('button', { name: /返回剧情/ }))
     await screen.findByText('走向另一条巷子')
     expect(screen.getByText('巷尾传来铃声。')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByText('林川')).not.toBeInTheDocument())
@@ -295,9 +295,7 @@ describe('InteractiveLayout', () => {
     expect(snapshotRequests).toBeGreaterThanOrEqual(2)
   })
 
-  it('shows the branch graph after refresh without requiring a manual expand click', async () => {
-    window.localStorage.removeItem('nova-interactive-branch-timeline-expanded')
-    window.localStorage.setItem('nova-interactive-main-vertical', JSON.stringify({ 'stage-area': 92, 'branch-timeline': 8 }))
+  it('opens the branch graph as a full workspace view from the left navigation', async () => {
     useInteractiveStore.setState({
       stories: [],
       tellers: [],
@@ -345,10 +343,16 @@ describe('InteractiveLayout', () => {
 
     render(<InteractiveLayout />)
 
+    expect(await screen.findByText('进入旧酒馆')).toBeInTheDocument()
+    expect(screen.queryByTestId('branch-graph-canvas')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /剧情路线图/ }))
+
     expect(await screen.findByTestId('branch-graph-canvas')).toBeInTheDocument()
     expect(await screen.findByText('侧巷')).toBeInTheDocument()
 
-    window.localStorage.removeItem('nova-interactive-branch-timeline-expanded')
-    window.localStorage.removeItem('nova-interactive-main-vertical')
+    fireEvent.click(screen.getByRole('button', { name: '剧情' }))
+    expect(await screen.findByText('故事舞台 · 当前分支 main')).toBeInTheDocument()
+    expect(screen.queryByTestId('branch-graph-canvas')).not.toBeInTheDocument()
   })
 })
