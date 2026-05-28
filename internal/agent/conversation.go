@@ -18,6 +18,12 @@ type Conversation interface {
 	ResolveInterruption(id string) error
 }
 
+// ContextSourceReporter 可由 Conversation 提供本轮已拼装的业务上下文来源。
+// ChatService 会在 PrepareMessages 后追加打印，便于排查非通用注入内容。
+type ContextSourceReporter interface {
+	ContextSourceSummary() string
+}
+
 type SessionConversation struct {
 	session *session.Session
 }

@@ -32,6 +32,7 @@ type interactiveConversation struct {
 	mu               sync.Mutex
 	lastTurn         *interactive.TurnEvent
 	lastStateReady   bool
+	lastSources      string
 }
 
 func newInteractiveConversation(store *interactive.Store, novaDir, workspace, storyID, branchID, user string, replyTargetChars int) *interactiveConversation {
@@ -48,7 +49,9 @@ func (c *interactiveConversation) PrepareMessages(originalMessage, agentMessage 
 		return nil, err
 	}
 	teller := c.teller(storyCtx.Meta.StoryTellerID)
-	tellerPrompt := teller.PromptForTargets("system", "context", "private_instruction")
+	tellerSystemPrompt := teller.PromptForTargets("system")
+	tellerContextPrompt := teller.PromptForTargets("context")
+	tellerPrivatePrompt := teller.PromptForTargets("private_instruction")
 	tellerThinkingPrompt := teller.PromptForTargets("thinking")
 	tellerTurnPrompt := teller.PromptForTargets("turn")
 	stateJSON, err := json.MarshalIndent(storyCtx.Snapshot.State, "", "  ")
@@ -66,7 +69,8 @@ func (c *interactiveConversation) PrepareMessages(originalMessage, agentMessage 
 		Title:               storyCtx.Meta.Title,
 		Origin:              storyCtx.Meta.Origin,
 		StoryTellerID:       storyCtx.Meta.StoryTellerID,
-		StoryTeller:         tellerPrompt,
+		StoryTellerContext:  tellerContextPrompt,
+		StoryTellerPrivate:  tellerPrivatePrompt,
 		StoryTellerThinking: tellerThinkingPrompt,
 		StoryTellerTurn:     tellerTurnPrompt,
 		BranchID:            storyCtx.Snapshot.BranchID,
@@ -77,21 +81,30 @@ func (c *interactiveConversation) PrepareMessages(originalMessage, agentMessage 
 		SnapshotStateJSON:   string(stateJSON),
 	})
 	history := make([]*schema.Message, 0, len(storyCtx.Snapshot.Turns)*2+2)
+	if strings.TrimSpace(tellerSystemPrompt) != "" {
+		history = append(history, schema.SystemMessage(tellerSystemPrompt))
+	}
 	history = append(history, schema.UserMessage(contextMessage))
 	for _, turn := range storyCtx.Snapshot.Turns {
 		history = append(history, schema.UserMessage(turn.User))
 		history = append(history, schema.AssistantMessage(turn.Narrative, nil))
 	}
-	history = append(history, schema.UserMessage(prompts.InteractiveStoryTurnInstruction(agentMessage, tellerThinkingPrompt)))
+	history = append(history, schema.UserMessage(prompts.InteractiveStoryTurnInstruction(agentMessage, tellerThinkingPrompt, tellerTurnPrompt)))
+	sourceSummary := interactiveStorySourceSummary(storyCtx.Meta.Title, storyCtx.Meta.Origin, teller, loreItems, characters, worldBuilding, string(stateJSON), storyCtx.Snapshot.Turns, agentMessage)
+	c.mu.Lock()
+	c.lastSources = sourceSummary
+	c.mu.Unlock()
 	log.Printf(
-		"[interactive-agent] context composition story_id=%s branch_id=%s story_title=%s origin=%s teller_id=%s teller_slots=%s teller_prompt=%s teller_thinking=%s teller_turn=%s characters=%s world_building=%s snapshot_state=%s turns=%d history=%s turn_instruction=%s sources=%s",
+		"[interactive-agent] context composition story_id=%s branch_id=%s story_title=%s origin=%s teller_id=%s teller_slots=%s teller_system=%s teller_context=%s teller_private=%s teller_thinking=%s teller_turn=%s characters=%s world_building=%s snapshot_state=%s turns=%d history=%s turn_instruction=%s sources=%s",
 		c.storyID,
 		storyCtx.Snapshot.BranchID,
 		interactivePartSummary(storyCtx.Meta.Title),
 		interactivePartSummary(storyCtx.Meta.Origin),
 		storyCtx.Meta.StoryTellerID,
 		interactiveTellerSlotSummary(teller, "system", "context", "private_instruction", "thinking", "turn"),
-		interactivePartSummary(tellerPrompt),
+		interactivePartSummary(tellerSystemPrompt),
+		interactivePartSummary(tellerContextPrompt),
+		interactivePartSummary(tellerPrivatePrompt),
 		interactivePartSummary(tellerThinkingPrompt),
 		interactivePartSummary(tellerTurnPrompt),
 		interactivePartSummary(firstNonEmpty(loreItems, characters)),
@@ -100,9 +113,18 @@ func (c *interactiveConversation) PrepareMessages(originalMessage, agentMessage 
 		len(storyCtx.Snapshot.Turns),
 		interactiveMessageListSummary(history),
 		interactivePartSummary(history[len(history)-1].Content),
-		interactiveStorySourceSummary(storyCtx.Meta.Title, storyCtx.Meta.Origin, teller, loreItems, characters, worldBuilding, string(stateJSON), storyCtx.Snapshot.Turns, agentMessage),
+		sourceSummary,
 	)
 	return history, nil
+}
+
+func (c *interactiveConversation) ContextSourceSummary() string {
+	if c == nil {
+		return ""
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.lastSources
 }
 
 func (c *interactiveConversation) AppendAssistant(content string) error {
@@ -165,7 +187,6 @@ func (c *interactiveConversation) BuildStateInstruction(turn interactive.TurnEve
 		Title:             storyCtx.Meta.Title,
 		Origin:            storyCtx.Meta.Origin,
 		StoryTellerID:     storyCtx.Meta.StoryTellerID,
-		StoryTeller:       teller.PromptForTargets("system", "context", "private_instruction"),
 		StoryTellerState:  teller.PromptForTargets("state_agent"),
 		BranchID:          storyCtx.Snapshot.BranchID,
 		Characters:        c.readSettingFile("characters.md"),
@@ -181,7 +202,7 @@ func (c *interactiveConversation) BuildStateInstruction(turn interactive.TurnEve
 		storyCtx.Snapshot.BranchID,
 		turn.ID,
 		storyCtx.Meta.StoryTellerID,
-		interactiveTellerSlotSummary(teller, "system", "context", "private_instruction", "state_agent"),
+		interactiveTellerSlotSummary(teller, "state_agent"),
 		interactiveStateSourceSummary(storyCtx.Meta.Title, storyCtx.Meta.Origin, teller, c.loreContext(), c.readSettingFile("characters.md"), c.readSettingFile("world-building.md"), string(stateJSON), turn.User, turn.Narrative),
 		interactivePartSummary(instruction),
 	)
@@ -286,7 +307,7 @@ func interactiveStateSourceSummary(title, origin string, teller interactive.Tell
 		{Source: "互动故事", Title: "故事标题", Content: title},
 		{Source: "互动故事", Title: "开端", Content: origin},
 	}
-	parts = append(parts, interactiveTellerSlotSources(teller, "system", "context", "private_instruction", "state_agent")...)
+	parts = append(parts, interactiveTellerSlotSources(teller, "state_agent")...)
 	if strings.TrimSpace(loreItems) != "" {
 		parts = append(parts, interactiveContextSource{Source: "资料库", Title: ".nova/lore/items.json", Content: loreItems})
 	} else {

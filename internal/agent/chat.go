@@ -135,6 +135,11 @@ func (s *ChatService) Run(
 		resumeInterruption != nil,
 	)
 	log.Printf("[agent-run] context sources %s", contextLog.String())
+	if reporter, ok := conversation.(ContextSourceReporter); ok {
+		if sources := strings.TrimSpace(reporter.ContextSourceSummary()); sources != "" {
+			log.Printf("[agent-run] conversation context sources %s", sources)
+		}
+	}
 
 	events := runner.Run(ctx, history)
 	var fullContent strings.Builder

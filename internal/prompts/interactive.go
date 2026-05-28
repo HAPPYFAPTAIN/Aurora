@@ -15,7 +15,8 @@ type InteractiveStoryPromptInput struct {
 	Title               string
 	Origin              string
 	StoryTellerID       string
-	StoryTeller         string
+	StoryTellerContext  string
+	StoryTellerPrivate  string
 	StoryTellerThinking string
 	StoryTellerTurn     string
 	BranchID            string
@@ -30,7 +31,6 @@ type InteractiveStatePromptInput struct {
 	Title             string
 	Origin            string
 	StoryTellerID     string
-	StoryTeller       string
 	StoryTellerState  string
 	BranchID          string
 	Characters        string
@@ -101,9 +101,8 @@ func InteractiveStoryContext(in InteractiveStoryPromptInput) string {
 	writeField(&sb, "开端", in.Origin)
 	writeField(&sb, "当前分支", in.BranchID)
 	writeField(&sb, "讲述者 ID", in.StoryTellerID)
-	writeBlock(&sb, "讲述者上下文规则", in.StoryTeller)
-	writeBlock(&sb, "内部思考引导", in.StoryTellerThinking)
-	writeBlock(&sb, "本回合讲述规则", in.StoryTellerTurn)
+	writeBlock(&sb, "讲述者上下文规则", in.StoryTellerContext)
+	writeBlock(&sb, "讲述者内部规则", in.StoryTellerPrivate)
 	if strings.TrimSpace(in.LoreItems) != "" {
 		writeBlock(&sb, "资料库", in.LoreItems)
 	} else {
@@ -121,8 +120,9 @@ func normalizeInteractiveReplyTargetChars(v int) int {
 	return v
 }
 
-func InteractiveStoryTurnInstruction(message, thinkingInstruction string) string {
+func InteractiveStoryTurnInstruction(message, thinkingInstruction, turnInstruction string) string {
 	thinkingInstruction = strings.TrimSpace(thinkingInstruction)
+	turnInstruction = strings.TrimSpace(turnInstruction)
 	thinkingBlock := ""
 	if thinkingInstruction != "" {
 		thinkingBlock = fmt.Sprintf(`
@@ -131,8 +131,16 @@ func InteractiveStoryTurnInstruction(message, thinkingInstruction string) string
 以上内容只用于你在 reasoning/thinking 中裁定剧情，不要作为正文、解释或标题输出。
 `, thinkingInstruction)
 	}
+	turnBlock := ""
+	if turnInstruction != "" {
+		turnBlock = fmt.Sprintf(`
+本轮输出规则：
+%s
+`, turnInstruction)
+	}
 	return fmt.Sprintf(`[互动输入]
 用户本回合行动：
+%s
 %s
 %s
 
@@ -140,7 +148,7 @@ func InteractiveStoryTurnInstruction(message, thinkingInstruction string) string
 本回合必须隐式完成：识别用户行动、判断相关角色和世界规则、裁定后果、制造新的可行动空间、保持角色和世界一致性；不要输出这些分析过程。
 本回合要让主角作为故事人物正常与环境、物品和其他角色互动，写出行动带来的反馈、代价、发现、阻碍或机会；不要每发生一个小动作就停下等待用户。
 其他角色应依据性格、目标、关系和当前局势主动反应。结尾请停在有意义的选择点、悬念点或决策点，让用户能决定下一步，但不要替用户做出重大选择。
-不要输出状态 JSON。`, strings.TrimSpace(message), thinkingBlock)
+不要输出状态 JSON。`, strings.TrimSpace(message), thinkingBlock, turnBlock)
 }
 
 func BuildInteractiveStateSystemInstruction() string {
@@ -170,7 +178,6 @@ func InteractiveStateInstruction(in InteractiveStatePromptInput) string {
 	writeField(&sb, "开端", in.Origin)
 	writeField(&sb, "当前分支", in.BranchID)
 	writeField(&sb, "讲述者 ID", in.StoryTellerID)
-	writeBlock(&sb, "讲述者上下文规则", in.StoryTeller)
 	writeBlock(&sb, "状态记录规则", in.StoryTellerState)
 	if strings.TrimSpace(in.LoreItems) != "" {
 		writeBlock(&sb, "资料库", in.LoreItems)

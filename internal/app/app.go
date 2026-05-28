@@ -6,10 +6,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/cloudwego/eino/adk"
+	"github.com/cloudwego/eino/schema"
 
 	"nova/config"
 	"nova/internal/agent"
@@ -17,6 +19,8 @@ import (
 	"nova/internal/interactive"
 	"nova/internal/session"
 )
+
+const loreAgentSessionID = "lore-agent"
 
 // App 管理 Nova 后端运行时依赖和 workspace 热切换。
 type App struct {
@@ -296,7 +300,7 @@ func (a *App) RestoreLoreVersion(id string) ([]book.LoreItem, error) {
 	return book.NewLoreStore(state.Workspace()).RestoreVersion(id)
 }
 
-func (a *App) RunLoreAgent(ctx context.Context, instruction string) (book.LoreApplyResult, error) {
+func (a *App) RunLoreAgent(ctx context.Context, instruction string, references []string) (book.LoreApplyResult, error) {
 	a.mu.RLock()
 	state := a.bookState
 	cfg := a.cfg
@@ -312,11 +316,153 @@ func (a *App) RunLoreAgent(ctx context.Context, instruction string) (book.LoreAp
 	if err != nil {
 		return book.LoreApplyResult{}, err
 	}
-	plan, err := agent.GenerateLoreEditPlan(ctx, &runtimeCfg, instruction, items)
+	plan, err := agent.GenerateLoreEditPlan(ctx, &runtimeCfg, instruction, items, references, nil)
 	if err != nil {
 		return book.LoreApplyResult{}, err
 	}
 	return store.ApplyOperations(plan.Message, plan.Ops)
+}
+
+func (a *App) LoreAgentMessages() ([]session.HistoryEntry, error) {
+	a.mu.RLock()
+	store := a.sessionStore
+	a.mu.RUnlock()
+	if store == nil {
+		return nil, ErrNoWorkspace
+	}
+	sess, err := store.GetOrCreate(loreAgentSessionID)
+	if err != nil {
+		return nil, err
+	}
+	return sess.History(), nil
+}
+
+func (a *App) ClearLoreAgentSession() error {
+	a.mu.RLock()
+	store := a.sessionStore
+	a.mu.RUnlock()
+	if store == nil {
+		return ErrNoWorkspace
+	}
+	sess, err := store.GetOrCreate(loreAgentSessionID)
+	if err != nil {
+		return err
+	}
+	return sess.Clear()
+}
+
+func (a *App) StartLoreAgentTask(instruction string, references []string) *Task {
+	a.mu.RLock()
+	state := a.bookState
+	cfg := a.cfg
+	workspace := a.workspace
+	sessionStore := a.sessionStore
+	a.mu.RUnlock()
+	if state == nil || cfg == nil || sessionStore == nil {
+		return nil
+	}
+	runtimeCfg := *cfg
+	runtimeCfg.Workspace = workspace
+	workspacePath := state.Workspace()
+	sess, err := sessionStore.GetOrCreate(loreAgentSessionID)
+	if err != nil {
+		log.Printf("[lore-agent-task] load session failed err=%v", err)
+		return nil
+	}
+	history := sess.GetEffectiveMessages()
+
+	return NewTask(func(ctx context.Context, task *Task, emit func(agent.Event)) {
+		store := book.NewLoreStore(workspacePath)
+		if err := sess.Append(schema.UserMessage(strings.TrimSpace(instruction))); err != nil {
+			emit(agent.Event{Type: "error", Data: map[string]string{"message": err.Error()}})
+			return
+		}
+		emitLoreToolCall(emit, "lore-read", "读取资料库", `{"source":"workspace"}`)
+		items, err := store.List()
+		if err != nil {
+			emitLoreError(sess, emit, err)
+			return
+		}
+		emitLoreToolResult(emit, "lore-read", "已读取资料库，共 "+fmt.Sprint(len(items))+" 条资料。")
+
+		emitLoreToolCall(emit, "lore-plan", "生成编辑方案", fmt.Sprintf(`{"references":%d,"history_messages":%d}`, len(references), len(history)))
+		plan, err := agent.StreamLoreEditPlan(ctx, &runtimeCfg, instruction, items, references, history, emit)
+		if err != nil {
+			emitLoreError(sess, emit, err)
+			return
+		}
+		emitLoreToolResult(emit, "lore-plan", fmt.Sprintf("已生成编辑方案，共 %d 个操作。", len(plan.Ops)))
+
+		emitLoreToolCall(emit, "lore-apply", "应用资料库变更", fmt.Sprintf(`{"ops":%d}`, len(plan.Ops)))
+		result, err := store.ApplyOperations(plan.Message, plan.Ops)
+		if err != nil {
+			emitLoreError(sess, emit, err)
+			return
+		}
+		emitLoreToolResult(emit, "lore-apply", loreResultMessage(result))
+
+		_ = sess.Append(schema.AssistantMessage(loreResultMessage(result), nil))
+		emit(agent.Event{Type: "lore_result", Data: result})
+	})
+}
+
+func emitLoreToolCall(emit func(agent.Event), id, name, args string) {
+	emit(agent.Event{Type: "tool_call", Data: map[string]any{
+		"id":   id,
+		"name": name,
+		"args": args,
+	}})
+}
+
+func emitLoreToolResult(emit func(agent.Event), id, content string) {
+	emit(agent.Event{Type: "tool_result", Data: map[string]any{
+		"id":      id,
+		"content": content,
+	}})
+}
+
+func emitLoreError(sess *session.Session, emit func(agent.Event), err error) {
+	message := err.Error()
+	_ = sess.Append(schema.AssistantMessage("执行失败："+message, nil))
+	emit(agent.Event{Type: "error", Data: map[string]string{"message": message}})
+}
+
+func loreResultMessage(result book.LoreApplyResult) string {
+	changed := []string{}
+	if len(result.Created) > 0 {
+		changed = append(changed, fmt.Sprintf("新增 %d", len(result.Created)))
+	}
+	if len(result.Updated) > 0 {
+		changed = append(changed, fmt.Sprintf("更新 %d", len(result.Updated)))
+	}
+	if len(result.DeletedIDs) > 0 {
+		changed = append(changed, fmt.Sprintf("删除 %d", len(result.DeletedIDs)))
+	}
+	message := strings.TrimSpace(result.Message)
+	if message == "" {
+		message = "资料库 Agent 已完成"
+	}
+	if len(changed) > 0 {
+		message += "（" + strings.Join(changed, "，") + "）"
+	}
+	if len(result.Created) > 0 {
+		message += "\n新增：" + loreItemNames(result.Created)
+	}
+	if len(result.Updated) > 0 {
+		message += "\n更新：" + loreItemNames(result.Updated)
+	}
+	if len(result.DeletedIDs) > 0 {
+		message += "\n删除：" + strings.Join(result.DeletedIDs, "，")
+	}
+	return message
+}
+
+func loreItemNames(items []book.LoreItem) string {
+	names := make([]string, 0, len(items))
+	for _, item := range items {
+		names = append(names, item.Name)
+	}
+	return strings.Join(names, "，")
 }
 
 // StartInteractiveTask 启动互动模式 Agent 任务，输出写回 interactive/story。

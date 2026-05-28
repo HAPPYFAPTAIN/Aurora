@@ -1,19 +1,24 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { BookMarked, Bot, Building2, ChevronDown, Database, FileText, Folder, History, Library, Loader2, MapPin, Plus, RotateCcw, Save, ScrollText, Search, SlidersHorizontal, Trash2, UserRound } from 'lucide-react'
+import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react'
+import { AtSign, BookMarked, Bot, Building2, ChevronDown, Database, FileText, Folder, History, Library, Loader2, MapPin, Plus, RotateCcw, Save, ScrollText, Search, Send, SlidersHorizontal, Trash2, UserRound, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
   createLoreVersion,
   createLoreItem,
+  clearLoreAgentSession,
   deleteLoreItem,
+  getLoreAgentMessages,
   getLoreItems,
   getLoreVersions,
   readFile,
   restoreLoreVersion,
-  runLoreAgent,
+  runLoreAgentStream,
   saveFile,
   updateLoreItem,
+  type ChatMessage,
+  type LoreAgentResult,
   type LoreItem,
   type LoreVersion,
+  type SSEEvent,
 } from '@/lib/api'
 import { isSaveShortcut } from '@/lib/keyboard'
 import { Button } from '@/components/ui/button'
@@ -21,10 +26,13 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { createInteractiveTeller, deleteInteractiveTeller, getInteractiveTellers, updateInteractiveTeller } from '../api'
 import type { Teller, TellerPromptSlot } from '../types'
 
 const CREATOR_PATH = 'CREATOR.md'
+const LORE_AGENT_ENTRY_ID = '__lore_agent__'
 
 const TYPE_OPTIONS = [
   { value: 'character', label: '角色' },
@@ -125,9 +133,6 @@ export function SettingPanel({ mode, tellers: externalTellers = [], onTellersCha
   const [draft, setDraft] = useState<LoreItem | null>(null)
   const [tagDraft, setTagDraft] = useState('')
   const [query, setQuery] = useState('')
-  const [loreAgentInput, setLoreAgentInput] = useState('')
-  const [loreAgentResult, setLoreAgentResult] = useState('')
-  const [loreAgentRunning, setLoreAgentRunning] = useState(false)
   const [versions, setVersions] = useState<LoreVersion[]>([])
   const [versionsVisible, setVersionsVisible] = useState(false)
   const [creatorContent, setCreatorContent] = useState('')
@@ -144,10 +149,13 @@ export function SettingPanel({ mode, tellers: externalTellers = [], onTellersCha
       .then((data) => {
         if (cancelled) return
         setItems(data)
-        setActiveId((current) => current || data[0]?.id || '')
+        setActiveId((current) => current || LORE_AGENT_ENTRY_ID)
       })
       .catch(() => {
-        if (!cancelled) setItems([])
+        if (!cancelled) {
+          setItems([])
+          setActiveId(LORE_AGENT_ENTRY_ID)
+        }
       })
     return () => { cancelled = true }
   }, [])
@@ -192,7 +200,7 @@ export function SettingPanel({ mode, tellers: externalTellers = [], onTellersCha
   const refreshItems = async (nextActiveId?: string) => {
     const data = await getLoreItems()
     setItems(data)
-    setActiveId(nextActiveId || data[0]?.id || '')
+    setActiveId(nextActiveId || LORE_AGENT_ENTRY_ID)
   }
 
   const refreshVersions = async () => {
@@ -281,31 +289,6 @@ export function SettingPanel({ mode, tellers: externalTellers = [], onTellersCha
     }
   }
 
-  const handleRunLoreAgent = async () => {
-    const instruction = loreAgentInput.trim()
-    if (!instruction) return
-    setLoreAgentRunning(true)
-    setLoreAgentResult('')
-    try {
-      const result = await runLoreAgent(instruction)
-      setItems(result.items || [])
-      const nextActive = result.updated?.[0]?.id || result.created?.[0]?.id || activeId || result.items?.[0]?.id || ''
-      setActiveId(nextActive)
-      const changed = [
-        result.created?.length ? `新增 ${result.created.length}` : '',
-        result.updated?.length ? `更新 ${result.updated.length}` : '',
-        result.deleted_ids?.length ? `删除 ${result.deleted_ids.length}` : '',
-      ].filter(Boolean).join('，')
-      setLoreAgentResult(`${result.message}${changed ? `（${changed}）` : ''}`)
-      setLoreAgentInput('')
-      await refreshVersions()
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : '资料库 Agent 执行失败')
-    } finally {
-      setLoreAgentRunning(false)
-    }
-  }
-
   const handleCreateLoreVersion = async () => {
     setSaving(true)
     try {
@@ -323,13 +306,19 @@ export function SettingPanel({ mode, tellers: externalTellers = [], onTellersCha
     try {
       const restored = await restoreLoreVersion(version.id)
       setItems(restored)
-      setActiveId(restored[0]?.id || '')
+      setActiveId(LORE_AGENT_ENTRY_ID)
       await refreshVersions()
     } finally {
       setSaving(false)
     }
   }
 
+  const handleLoreAgentResult = async (result: LoreAgentResult) => {
+    setItems(result.items || [])
+    await refreshVersions()
+  }
+
+  const isLoreAgentActive = activeMode === 'lore' && activeId === LORE_AGENT_ENTRY_ID
   return (
     <section className="flex h-full min-h-0 bg-[var(--nova-surface-2)] text-[var(--nova-text)]">
       <aside className="nova-sidebar flex w-[320px] shrink-0 flex-col border-r">
@@ -369,12 +358,12 @@ export function SettingPanel({ mode, tellers: externalTellers = [], onTellersCha
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
               <ModeIcon mode={activeMode} />
-              <h2 className="truncate text-sm font-semibold text-[var(--nova-text)]">{editorTitle(activeMode, draft, tellerDraft)}</h2>
+              <h2 className="truncate text-sm font-semibold text-[var(--nova-text)]">{isLoreAgentActive ? '资料库 Agent' : editorTitle(activeMode, draft, tellerDraft)}</h2>
             </div>
-            <p className="mt-0.5 truncate text-[11px] text-[var(--nova-text-faint)]">{editorSubtitle(activeMode, draft, tellerDraft)}</p>
+            <p className="mt-0.5 truncate text-[11px] text-[var(--nova-text-faint)]">{isLoreAgentActive ? '用自然语言批量整理、补充和修改资料库' : editorSubtitle(activeMode, draft, tellerDraft)}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {activeMode === 'lore' && (
+            {activeMode === 'lore' && !isLoreAgentActive && (
               <Button className={iconActionClassName} variant="outline" size="icon" disabled={saving || !draft} onClick={handleDelete} aria-label="删除资料">
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -384,29 +373,31 @@ export function SettingPanel({ mode, tellers: externalTellers = [], onTellersCha
                 <Trash2 className="h-4 w-4" />
               </Button>
             )}
-            <Button className={actionButtonClassName} variant="outline" size="sm" disabled={saving || (activeMode === 'lore' && !draft) || (activeMode === 'teller' && !tellerDraft)} onClick={handleSave}>
-              <Save className="h-4 w-4" />
-              {saving ? '保存中...' : '保存'}
-            </Button>
+            {!isLoreAgentActive && (
+              <Button className={actionButtonClassName} variant="outline" size="sm" disabled={saving || (activeMode === 'lore' && !draft) || (activeMode === 'teller' && !tellerDraft)} onClick={handleSave}>
+                <Save className="h-4 w-4" />
+                {saving ? '保存中...' : '保存'}
+              </Button>
+            )}
           </div>
         </div>
 
         {activeMode === 'lore' ? (
           <>
-            <LoreAgentPanel
-              value={loreAgentInput}
-              result={loreAgentResult}
-              running={loreAgentRunning}
-              saving={saving}
-              versions={versions}
-              versionsVisible={versionsVisible}
-              onValueChange={setLoreAgentInput}
-              onRun={() => void handleRunLoreAgent()}
-              onToggleVersions={() => setVersionsVisible((value) => !value)}
-              onCreateVersion={() => void handleCreateLoreVersion()}
-              onRestoreVersion={(version) => void handleRestoreLoreVersion(version)}
-            />
-            <LoreEditor draft={draft} tagDraft={tagDraft} setDraft={setDraft} setTagDraft={setTagDraft} onSave={handleSave} />
+            {activeId === LORE_AGENT_ENTRY_ID ? (
+              <LoreAgentChat
+                items={items}
+                versions={versions}
+                versionsVisible={versionsVisible}
+                saving={saving}
+                onResult={(result) => void handleLoreAgentResult(result)}
+                onToggleVersions={() => setVersionsVisible((value) => !value)}
+                onCreateVersion={() => void handleCreateLoreVersion()}
+                onRestoreVersion={(version) => void handleRestoreLoreVersion(version)}
+              />
+            ) : (
+              <LoreEditor draft={draft} tagDraft={tagDraft} setDraft={setDraft} setTagDraft={setTagDraft} onSave={handleSave} />
+            )}
           </>
         ) : activeMode === 'creator' ? (
           <CreatorEditor content={creatorContent} setContent={setCreatorContent} onSave={handleSave} />
@@ -426,90 +417,501 @@ export function SettingPanel({ mode, tellers: externalTellers = [], onTellersCha
   )
 }
 
-function LoreAgentPanel({
-  value,
-  result,
-  running,
-  saving,
+type LoreAgentChatMessage = {
+  id: string
+  role: 'user' | 'assistant' | 'thinking' | 'tool_call' | 'error' | 'clear'
+  content: string
+  name?: string
+  args?: string
+  status?: 'running' | 'success' | 'error'
+  toolResult?: string
+  references?: LoreItem[]
+  result?: LoreAgentResult
+}
+
+interface LoreStatusPayload {
+  stage?: string
+  message?: string
+  ops?: number
+}
+
+interface LoreToolPayload {
+  id?: string
+  name?: string
+  args?: string
+  delta?: string
+  content?: string
+}
+
+function LoreAgentChat({
+  items,
   versions,
   versionsVisible,
-  onValueChange,
-  onRun,
+  saving,
+  onResult,
   onToggleVersions,
   onCreateVersion,
   onRestoreVersion,
 }: {
-  value: string
-  result: string
-  running: boolean
-  saving: boolean
+  items: LoreItem[]
   versions: LoreVersion[]
   versionsVisible: boolean
-  onValueChange: (value: string) => void
-  onRun: () => void
+  saving: boolean
+  onResult: (result: LoreAgentResult) => void
   onToggleVersions: () => void
   onCreateVersion: () => void
   onRestoreVersion: (version: LoreVersion) => void
 }) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const messageEndRef = useRef<HTMLDivElement>(null)
+  const historyLoadedRef = useRef(false)
+  const [value, setValue] = useState('')
+  const [referenceIds, setReferenceIds] = useState<string[]>([])
+  const [referenceQuery, setReferenceQuery] = useState<string | null>(null)
+  const [messages, setMessages] = useState<LoreAgentChatMessage[]>([])
+  const [running, setRunning] = useState(false)
+  const referencedItems = referenceIds
+    .map((id) => items.find((item) => item.id === id))
+    .filter((item): item is LoreItem => Boolean(item))
+  const normalizedQuery = (referenceQuery || '').trim().toLowerCase()
+  const visibleItems = items
+    .filter((item) => {
+      if (referenceIds.includes(item.id)) return false
+      if (!normalizedQuery) return true
+      const haystack = `${item.name}\n${item.id}\n${item.content || ''}\n${(item.tags || []).join('\n')}`.toLowerCase()
+      return haystack.includes(normalizedQuery)
+    })
+    .slice(0, 30)
+
+  useEffect(() => {
+    setReferenceIds((current) => current.filter((id) => items.some((item) => item.id === id)))
+  }, [items])
+
+  useEffect(() => {
+    messageEndRef.current?.scrollIntoView({ block: 'end' })
+  }, [messages, running])
+
+  useEffect(() => {
+    if (historyLoadedRef.current) return
+    historyLoadedRef.current = true
+    let cancelled = false
+    getLoreAgentMessages()
+      .then((history) => {
+        if (cancelled) return
+        setMessages(history.map((message, index) => loreHistoryMessageToChat(message, index, items)))
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setMessages([{ id: 'load-error', role: 'error', content: error instanceof Error ? error.message : '资料库 Agent 历史加载失败' }])
+        }
+      })
+    return () => { cancelled = true }
+  }, [items])
+
+  const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+    const nextValue = event.target.value
+    setValue(nextValue)
+    const atMatch = nextValue.match(/(?:^|\s)@([^\s@]*)$/)
+    setReferenceQuery(atMatch ? atMatch[1] : null)
+  }
+
+  const selectReference = (item: LoreItem) => {
+    const nextValue = value.replace(/(?:^|\s)@([^\s@]*)$/, (match) => {
+      const prefix = match.startsWith(' ') ? ' ' : ''
+      return `${prefix}@${item.name} `
+    })
+    setValue(nextValue === value ? `${value.trimEnd()} @${item.name} ` : nextValue)
+    setReferenceIds((current) => current.includes(item.id) ? current : [...current, item.id])
+    setReferenceQuery(null)
+    textareaRef.current?.focus()
+  }
+
+  const removeReference = (id: string) => {
+    setReferenceIds((current) => current.filter((entry) => entry !== id))
+  }
+
+  const appendMessage = (message: Omit<LoreAgentChatMessage, 'id'>) => {
+    setMessages((current) => [...current, { ...message, id: `${Date.now()}-${current.length}` }])
+  }
+
+  const appendStreamingMessage = (role: 'assistant' | 'thinking', content: string) => {
+    if (!content) return
+    setMessages((current) => {
+      const last = current[current.length - 1]
+      if (last?.role === role && !last.result) {
+        return [...current.slice(0, -1), { ...last, content: `${last.content}${content}` }]
+      }
+      return [...current, { id: `${Date.now()}-${current.length}`, role, content }]
+    })
+  }
+
+  const upsertToolCall = (payload: LoreToolPayload) => {
+    const id = payload.id || `tool-${Date.now()}`
+    const name = payload.name || '资料库工具'
+    setMessages((current) => {
+      const existing = current.findIndex((message) => message.id === id)
+      const nextMessage: LoreAgentChatMessage = {
+        id,
+        role: 'tool_call',
+        content: name,
+        name,
+        args: payload.args || '',
+        status: 'running',
+      }
+      if (existing >= 0) {
+        return current.map((message, index) => index === existing ? { ...message, ...nextMessage, args: message.args || nextMessage.args } : message)
+      }
+      return [...current, nextMessage]
+    })
+  }
+
+  const appendToolArgs = (payload: LoreToolPayload) => {
+    if (!payload.id || !payload.delta) return
+    setMessages((current) => current.map((message) => (
+      message.id === payload.id && message.role === 'tool_call'
+        ? { ...message, args: `${message.args || ''}${payload.delta}` }
+        : message
+    )))
+  }
+
+  const finishToolCall = (payload: LoreToolPayload) => {
+    const id = payload.id
+    if (!id) return
+    setMessages((current) => current.map((message) => (
+      message.id === id && message.role === 'tool_call'
+        ? { ...message, status: 'success', toolResult: payload.content || '' }
+        : message
+    )))
+  }
+
+  const send = async () => {
+    const instruction = value.trim()
+    if (!instruction || running) return
+    if (instruction === '/clear') {
+      setRunning(true)
+      try {
+        await clearLoreAgentSession()
+        appendMessage({ role: 'clear', content: '已清理资料库 Agent 上下文，历史消息仍保留。' })
+        setValue('')
+        setReferenceIds([])
+        setReferenceQuery(null)
+      } catch (error) {
+        appendMessage({ role: 'error', content: error instanceof Error ? error.message : '资料库 Agent 上下文清理失败' })
+      } finally {
+        setRunning(false)
+      }
+      return
+    }
+    const refs = [...referenceIds]
+    const userReferences = refs
+      .map((id) => items.find((item) => item.id === id))
+      .filter((item): item is LoreItem => Boolean(item))
+    appendMessage({ role: 'user', content: instruction, references: userReferences })
+    setValue('')
+    setReferenceIds([])
+    setReferenceQuery(null)
+    setRunning(true)
+    try {
+      const stream = await runLoreAgentStream(instruction, refs)
+      const reader = stream.getReader()
+      while (true) {
+        const { done, value: event } = await reader.read()
+        if (done) break
+        handleLoreAgentEvent(event)
+      }
+    } catch (error) {
+      appendMessage({ role: 'error', content: error instanceof Error ? error.message : '资料库 Agent 执行失败' })
+    } finally {
+      setRunning(false)
+      textareaRef.current?.focus()
+    }
+  }
+
+  const handleLoreAgentEvent = (event: SSEEvent) => {
+    if (event.event === 'thinking') {
+      const payload = parseLoreEventData<{ content?: string }>(event.data)
+      appendStreamingMessage('thinking', payload?.content || '')
+      return
+    }
+    if (event.event === 'chunk') {
+      const payload = parseLoreEventData<{ content?: string }>(event.data)
+      appendStreamingMessage('assistant', payload?.content || '')
+      return
+    }
+    if (event.event === 'tool_call') {
+      const payload = parseLoreEventData<LoreToolPayload>(event.data)
+      if (payload) upsertToolCall(payload)
+      return
+    }
+    if (event.event === 'tool_args_delta') {
+      const payload = parseLoreEventData<LoreToolPayload>(event.data)
+      if (payload) appendToolArgs(payload)
+      return
+    }
+    if (event.event === 'tool_result') {
+      const payload = parseLoreEventData<LoreToolPayload>(event.data)
+      if (payload) finishToolCall(payload)
+      return
+    }
+    if (event.event === 'lore_status') {
+      const payload = parseLoreEventData<LoreStatusPayload>(event.data)
+      const content = payload?.message || '资料库 Agent 正在处理...'
+      appendMessage({ role: 'assistant', content: payload?.ops ? `${content}（${payload.ops} 个操作）` : content })
+      return
+    }
+    if (event.event === 'lore_result') {
+      const result = parseLoreEventData<LoreAgentResult>(event.data)
+      if (!result) {
+        appendMessage({ role: 'error', content: '资料库 Agent 返回结果无法解析' })
+        return
+      }
+      onResult(result)
+      appendMessage({ role: 'assistant', content: loreAgentResultSummary(result), result })
+      return
+    }
+    if (event.event === 'error') {
+      const payload = parseLoreEventData<{ message?: string }>(event.data)
+      appendMessage({ role: 'error', content: payload?.message || '资料库 Agent 执行失败' })
+    }
+  }
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      void send()
+      return
+    }
+    if (event.key === 'Escape') {
+      setReferenceQuery(null)
+    }
+  }
+
   return (
-    <div className="shrink-0 border-b border-[var(--nova-border)] bg-[var(--nova-surface)] px-4 py-3">
-      <div className="flex items-start gap-2">
-        <div className="nova-field flex min-w-0 flex-1 items-start gap-2 rounded-[var(--nova-radius)] px-3 py-2">
-          <Bot className="mt-1 h-4 w-4 shrink-0 text-[var(--nova-text-faint)]" />
-          <textarea
-            className="min-h-10 flex-1 resize-none bg-transparent text-sm leading-5 text-[var(--nova-text)] outline-none placeholder:text-[var(--nova-text-faint)]"
-            value={value}
-            onChange={(event) => onValueChange(event.target.value)}
-            placeholder="例如：合并重复角色，补齐主角阵营关系，删除过期模板"
-            rows={2}
-          />
-        </div>
-        <Button className={actionButtonClassName} variant="outline" size="sm" disabled={running || !value.trim()} onClick={onRun}>
-          {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
-          {running ? '执行中...' : '执行'}
-        </Button>
+    <div className="flex min-h-0 flex-1 flex-col bg-[var(--nova-surface-2)]">
+      <div className="flex h-10 shrink-0 items-center justify-between border-b border-[var(--nova-border)] bg-[var(--nova-surface)] px-4">
+        <div className="text-xs text-[var(--nova-text-faint)]">对话已保存到当前 workspace，输入 /clear 可清理后续上下文。</div>
         <Button className={actionButtonClassName} variant="outline" size="sm" onClick={onToggleVersions}>
           <History className="h-4 w-4" />
           版本
         </Button>
       </div>
-      {(result || versionsVisible) && (
-        <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_360px]">
-          <div className="min-h-8 rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-3 py-2 text-xs text-[var(--nova-text-muted)]">
-            {result || '暂无 Agent 变更'}
+
+      {versionsVisible && (
+        <div className="shrink-0 border-b border-[var(--nova-border)] bg-[var(--nova-surface)] px-4 py-3">
+          <div className="rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)]">
+            <div className="flex h-9 items-center justify-between border-b border-[var(--nova-border)] px-3">
+              <span className="text-xs font-medium text-[var(--nova-text-muted)]">资料库版本</span>
+              <Button className={actionButtonClassName} variant="outline" size="sm" disabled={saving} onClick={onCreateVersion}>
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="max-h-36 overflow-auto p-2">
+              {versions.length ? versions.map((version) => (
+                <div key={version.id} className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)]">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[var(--nova-text)]">{version.message || version.id}</div>
+                    <div className="truncate text-[11px] text-[var(--nova-text-faint)]">{formatDateTime(version.created_at)} · {version.item_count} 条</div>
+                  </div>
+                  <button
+                    type="button"
+                    className="nova-nav-item rounded p-1 text-[var(--nova-text-faint)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]"
+                    onClick={() => onRestoreVersion(version)}
+                    aria-label="恢复资料库版本"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )) : (
+                <div className="px-2 py-3 text-xs text-[var(--nova-text-faint)]">暂无版本</div>
+              )}
+            </div>
           </div>
-          {versionsVisible && (
-            <div className="rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)]">
-              <div className="flex h-9 items-center justify-between border-b border-[var(--nova-border)] px-3">
-                <span className="text-xs font-medium text-[var(--nova-text-muted)]">资料库版本</span>
-                <Button className={actionButtonClassName} variant="outline" size="sm" disabled={saving} onClick={onCreateVersion}>
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
+        </div>
+      )}
+
+      <div className="min-h-0 flex-1 overflow-auto px-5 py-4">
+        {messages.length === 0 ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="max-w-md rounded-[var(--nova-radius)] border border-dashed border-[var(--nova-border)] bg-[var(--nova-surface)] px-6 py-5 text-center">
+              <div className="text-sm font-medium text-[var(--nova-text)]">和资料库 Agent 对话</div>
+              <div className="mt-1 text-xs leading-5 text-[var(--nova-text-faint)]">直接描述要整理、补充或修改的设定；需要限定对象时，在输入框里用 @ 引用资料条目。</div>
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto flex max-w-4xl flex-col gap-3">
+            {messages.map((message) => (
+              <LoreAgentMessage key={message.id} message={message} />
+            ))}
+            {running && (
+              <div className="flex items-center gap-2 self-start rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface)] px-3 py-2 text-xs text-[var(--nova-text-muted)]">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Agent 正在处理...
               </div>
-              <div className="max-h-40 overflow-auto p-2">
-                {versions.length ? versions.map((version) => (
-                  <div key={version.id} className="flex items-center gap-2 rounded px-2 py-1.5 text-xs text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)]">
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[var(--nova-text)]">{version.message || version.id}</div>
-                      <div className="truncate text-[11px] text-[var(--nova-text-faint)]">{formatDateTime(version.created_at)} · {version.item_count} 条</div>
-                    </div>
+            )}
+            <div ref={messageEndRef} />
+          </div>
+        )}
+      </div>
+
+      <div className="shrink-0 border-t border-[var(--nova-border)] bg-[var(--nova-surface)] p-4">
+        <div className="mx-auto max-w-4xl">
+          <div className="nova-field flex min-w-0 items-end gap-2 rounded-[var(--nova-radius)] px-3 py-2">
+            <Bot className="mb-2 h-4 w-4 shrink-0 text-[var(--nova-text-faint)]" />
+            <div className="relative min-w-0 flex-1">
+              <Popover open={referenceQuery !== null && visibleItems.length > 0}>
+                <PopoverTrigger asChild>
+                  <span className="absolute bottom-full left-0 h-0 w-0" />
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  side="top"
+                  className="mb-2 w-[360px] border-[var(--nova-border)] bg-[var(--nova-surface-2)] p-0 text-[var(--nova-text)]"
+                  onOpenAutoFocus={(event) => event.preventDefault()}
+                >
+                  <Command shouldFilter={false} className="bg-transparent">
+                    <CommandInput value={referenceQuery || ''} readOnly placeholder="搜索资料条目..." />
+                    <CommandList>
+                      <CommandEmpty>未找到资料</CommandEmpty>
+                      <CommandGroup heading="引用资料">
+                        {visibleItems.map((item) => (
+                          <CommandItem
+                            key={item.id}
+                            value={item.id}
+                            onSelect={() => selectReference(item)}
+                            className="cursor-pointer"
+                          >
+                            <span className="min-w-0 flex-1 truncate">@{item.name}</span>
+                            <span className="text-[11px] text-[var(--nova-text-faint)]">{loreTypeLabel(item.type)}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <textarea
+                ref={textareaRef}
+                className="max-h-36 min-h-10 w-full resize-none bg-transparent text-sm leading-5 text-[var(--nova-text)] outline-none placeholder:text-[var(--nova-text-faint)] disabled:opacity-60"
+                value={value}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                placeholder={running ? '资料库 Agent 正在执行...' : '输入资料库修改指令，Enter 发送，Shift+Enter 换行'}
+                rows={2}
+                disabled={running}
+              />
+            </div>
+            {referencedItems.length > 0 && (
+              <div className="flex max-w-[220px] flex-wrap justify-end gap-1.5">
+                {referencedItems.map((item) => (
+                  <span
+                    key={item.id}
+                    className="inline-flex max-w-full items-center gap-1 rounded-md border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-2 py-0.5 text-xs text-[var(--nova-text-muted)]"
+                  >
+                    <AtSign className="h-3 w-3 shrink-0 text-[var(--nova-text-faint)]" />
+                    <span className="truncate">{item.name}</span>
                     <button
                       type="button"
-                      className="nova-nav-item rounded p-1 text-[var(--nova-text-faint)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]"
-                      onClick={() => onRestoreVersion(version)}
-                      aria-label="恢复资料库版本"
+                      className="rounded text-[var(--nova-text-faint)] hover:text-[var(--nova-text)]"
+                      onClick={() => removeReference(item.id)}
+                      aria-label={`移除引用 ${item.name}`}
                     >
-                      <RotateCcw className="h-3.5 w-3.5" />
+                      <X className="h-3 w-3" />
                     </button>
-                  </div>
-                )) : (
-                  <div className="px-2 py-3 text-xs text-[var(--nova-text-faint)]">暂无版本</div>
-                )}
+                  </span>
+                ))}
               </div>
+            )}
+            <Button className={actionButtonClassName} variant="outline" size="sm" disabled={running || !value.trim()} onClick={() => void send()}>
+              {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {running ? '执行中...' : '发送'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LoreAgentMessage({ message }: { message: LoreAgentChatMessage }) {
+  if (message.role === 'clear') {
+    return (
+      <div className="flex items-center gap-3 py-2">
+        <div className="h-px flex-1 bg-[var(--nova-border)]" />
+        <div className="rounded-full border border-[var(--nova-border)] bg-[var(--nova-surface)] px-3 py-1 text-[11px] text-[var(--nova-text-faint)]">
+          {message.content || '上下文已清理'}
+        </div>
+        <div className="h-px flex-1 bg-[var(--nova-border)]" />
+      </div>
+    )
+  }
+  if (message.role === 'thinking') {
+    return (
+      <div className="flex justify-start">
+        <div className="max-w-[78%] rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface)] px-3 py-2 text-xs leading-5 text-[var(--nova-text-faint)]">
+          <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-[var(--nova-text-muted)]">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            思考过程
+          </div>
+          <div className="whitespace-pre-wrap break-words">{message.content}</div>
+        </div>
+      </div>
+    )
+  }
+  if (message.role === 'tool_call') {
+    return (
+      <div className="flex justify-start">
+        <div className="max-w-[78%] rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface)] px-3 py-2 text-xs leading-5 text-[var(--nova-text-muted)]">
+          <div className="flex items-center gap-2">
+            {message.status === 'running' ? <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--nova-text-faint)]" /> : <Bot className="h-3.5 w-3.5 text-[var(--nova-text-faint)]" />}
+            <span className="font-medium text-[var(--nova-text)]">{message.name || message.content}</span>
+            <span className="text-[11px] text-[var(--nova-text-faint)]">{message.status === 'running' ? '执行中' : '完成'}</span>
+          </div>
+          {message.args && (
+            <pre className="mt-2 max-h-40 overflow-auto rounded border border-[var(--nova-border)] bg-[var(--nova-surface-2)] p-2 font-mono text-[11px] leading-4 text-[var(--nova-text-faint)]">
+              {message.args}
+            </pre>
+          )}
+          {message.toolResult && (
+            <div className="mt-2 whitespace-pre-wrap rounded border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-2 py-1.5 text-[11px] text-[var(--nova-text-muted)]">
+              {message.toolResult}
             </div>
           )}
         </div>
-      )}
+      </div>
+    )
+  }
+  const isUser = message.role === 'user'
+  const isError = message.role === 'error'
+  return (
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={`max-w-[78%] rounded-[var(--nova-radius)] border px-3 py-2 text-sm leading-6 ${
+          isUser
+            ? 'border-[var(--nova-active)] bg-[var(--nova-active)] text-[var(--nova-text)]'
+            : isError
+              ? 'border-red-500/40 bg-red-500/10 text-red-100'
+              : 'border-[var(--nova-border)] bg-[var(--nova-surface)] text-[var(--nova-text-muted)]'
+        }`}
+      >
+        <div className="whitespace-pre-wrap break-words">{message.content}</div>
+        {message.references && message.references.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {message.references.map((item) => (
+              <span key={item.id} className="inline-flex max-w-full items-center gap-1 rounded-md border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-2 py-0.5 text-xs text-[var(--nova-text-muted)]">
+                <AtSign className="h-3 w-3 shrink-0 text-[var(--nova-text-faint)]" />
+                <span className="truncate">{item.name}</span>
+              </span>
+            ))}
+          </div>
+        )}
+        {message.result && (
+          <div className="mt-2 space-y-1 border-t border-[var(--nova-border)] pt-2 text-xs text-[var(--nova-text-faint)]">
+            {message.result.created?.length ? <div>新增：{message.result.created.map((item) => item.name).join('，')}</div> : null}
+            {message.result.updated?.length ? <div>更新：{message.result.updated.map((item) => item.name).join('，')}</div> : null}
+            {message.result.deleted_ids?.length ? <div>删除：{message.result.deleted_ids.join('，')}</div> : null}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -531,6 +933,23 @@ function LoreDirectory({
   onSelect: (id: string) => void
   onCreate: (section: KnowledgeSection) => void
 }) {
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
+  const sections = KNOWLEDGE_SECTIONS
+    .map((section) => ({ section, entries: sectionItems(items, section, query) }))
+    .sort((a, b) => {
+      if (a.entries.length === 0 && b.entries.length > 0) return 1
+      if (a.entries.length > 0 && b.entries.length === 0) return -1
+      return KNOWLEDGE_SECTIONS.findIndex((section) => section.id === a.section.id) - KNOWLEDGE_SECTIONS.findIndex((section) => section.id === b.section.id)
+    })
+
+  const isCollapsed = (section: KnowledgeSection, entries: LoreItem[]) => collapsedSections[section.id] ?? entries.length === 0
+  const toggleSection = (section: KnowledgeSection, entries: LoreItem[]) => {
+    setCollapsedSections((current) => ({
+      ...current,
+      [section.id]: !(current[section.id] ?? entries.length === 0),
+    }))
+  }
+
   return (
     <>
       <div className="border-b border-[var(--nova-border)] p-2">
@@ -543,16 +962,33 @@ function LoreDirectory({
             placeholder="搜索资料"
           />
         </div>
+        <button
+          type="button"
+          onClick={() => onSelect(LORE_AGENT_ENTRY_ID)}
+          className={`mt-2 flex h-9 w-full items-center gap-2 rounded-md px-2 text-left text-xs transition ${
+            activeId === LORE_AGENT_ENTRY_ID ? 'is-active bg-[var(--nova-active)] text-[var(--nova-text)]' : 'text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]'
+          }`}
+        >
+          <Bot className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-faint)]" />
+          <span className="min-w-0 flex-1 truncate">资料库 Agent</span>
+        </button>
       </div>
       <ScrollArea className="min-h-0 flex-1">
         <div className="p-2">
-          {KNOWLEDGE_SECTIONS.map((section) => {
-            const entries = sectionItems(items, section, query)
+          {sections.map(({ section, entries }) => {
             const Icon = section.icon
+            const collapsed = isCollapsed(section, entries)
             return (
-              <section key={section.id} className="mb-2">
-                <div className="flex h-8 items-center gap-2 rounded px-2 text-xs text-[var(--nova-text-muted)]">
-                  <ChevronDown className="h-3.5 w-3.5 text-[var(--nova-text-faint)]" />
+              <section key={section.id} className={entries.length ? 'mb-2' : 'mb-1'}>
+                <div className={`flex h-8 items-center gap-2 rounded px-2 text-xs ${entries.length ? 'text-[var(--nova-text-muted)]' : 'text-[var(--nova-text-faint)]'}`}>
+                  <button
+                    type="button"
+                    className="nova-nav-item rounded p-0.5 text-[var(--nova-text-faint)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]"
+                    onClick={() => toggleSection(section, entries)}
+                    aria-label={collapsed ? `展开${section.label}` : `折叠${section.label}`}
+                  >
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${collapsed ? '-rotate-90' : ''}`} />
+                  </button>
                   <Icon className="h-3.5 w-3.5 text-[var(--nova-text-faint)]" />
                   <span className="min-w-0 flex-1 truncate font-medium">{section.label}</span>
                   <span className="text-[11px] text-[var(--nova-text-faint)]">{entries.length}</span>
@@ -566,23 +1002,23 @@ function LoreDirectory({
                     <Plus className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <div className="ml-5 space-y-0.5 border-l border-[var(--nova-border)] pl-2">
-                  {entries.length ? entries.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => onSelect(item.id)}
-                      className={`flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-xs transition ${
-                        activeId === item.id ? 'is-active bg-[var(--nova-active)] text-[var(--nova-text)]' : 'text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]'
-                      }`}
-                    >
-                      <FileText className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-faint)]" />
-                      <span className="min-w-0 flex-1 truncate">{item.name}</span>
-                    </button>
-                  )) : (
-                    <div className="px-2 py-1.5 text-[11px] text-[var(--nova-text-faint)]">暂无条目</div>
-                  )}
-                </div>
+                {!collapsed && entries.length > 0 && (
+                  <div className="ml-5 space-y-0.5 border-l border-[var(--nova-border)] pl-2">
+                    {entries.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => onSelect(item.id)}
+                        className={`flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-xs transition ${
+                          activeId === item.id ? 'is-active bg-[var(--nova-active)] text-[var(--nova-text)]' : 'text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]'
+                        }`}
+                      >
+                        <FileText className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-faint)]" />
+                        <span className="min-w-0 flex-1 truncate">{item.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </section>
             )
           })}
@@ -997,6 +1433,44 @@ function splitTags(value: string) {
     .split(/[，,]/)
     .map((tag) => tag.trim())
     .filter(Boolean)
+}
+
+function parseLoreEventData<T>(data: string): T | null {
+  try {
+    return JSON.parse(data) as T
+  } catch {
+    return null
+  }
+}
+
+function loreHistoryMessageToChat(message: ChatMessage, index: number, items: LoreItem[]): LoreAgentChatMessage {
+  if (message.type === 'clear') {
+    return {
+      id: `history-clear-${index}`,
+      role: 'clear',
+      content: '已清理资料库 Agent 上下文，历史消息仍保留。',
+    }
+  }
+  const role = message.role === 'user' ? 'user' : message.role === 'error' ? 'error' : 'assistant'
+  return {
+    id: `history-${index}`,
+    role,
+    content: message.content || '',
+    references: role === 'user' ? loreReferencesFromContent(message.content || '', items) : undefined,
+  }
+}
+
+function loreReferencesFromContent(content: string, items: LoreItem[]) {
+  return items.filter((item) => item.name && content.includes(`@${item.name}`))
+}
+
+function loreAgentResultSummary(result: LoreAgentResult) {
+  const changed = [
+    result.created?.length ? `新增 ${result.created.length}` : '',
+    result.updated?.length ? `更新 ${result.updated.length}` : '',
+    result.deleted_ids?.length ? `删除 ${result.deleted_ids.length}` : '',
+  ].filter(Boolean).join('，')
+  return `${result.message || '资料库 Agent 已完成'}${changed ? `（${changed}）` : ''}`
 }
 
 function formatDateTime(value: string) {

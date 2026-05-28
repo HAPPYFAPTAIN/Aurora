@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"strings"
 
@@ -19,13 +20,29 @@ type LoreEditPlan struct {
 	Ops     []book.LoreOperation `json:"ops"`
 }
 
-func GenerateLoreEditPlan(ctx context.Context, cfg *config.Config, instruction string, items []book.LoreItem) (LoreEditPlan, error) {
+func GenerateLoreEditPlan(ctx context.Context, cfg *config.Config, instruction string, items []book.LoreItem, references []string, history []*schema.Message) (LoreEditPlan, error) {
+	content, err := generateLoreEditPlanContent(ctx, cfg, instruction, items, references, history, nil)
+	if err != nil {
+		return LoreEditPlan{}, err
+	}
+	return parseLoreEditPlan(content)
+}
+
+func StreamLoreEditPlan(ctx context.Context, cfg *config.Config, instruction string, items []book.LoreItem, references []string, history []*schema.Message, emit func(Event)) (LoreEditPlan, error) {
+	content, err := generateLoreEditPlanContent(ctx, cfg, instruction, items, references, history, emit)
+	if err != nil {
+		return LoreEditPlan{}, err
+	}
+	return parseLoreEditPlan(content)
+}
+
+func generateLoreEditPlanContent(ctx context.Context, cfg *config.Config, instruction string, items []book.LoreItem, references []string, history []*schema.Message, emit func(Event)) (string, error) {
 	if cfg == nil {
-		return LoreEditPlan{}, fmt.Errorf("配置不存在")
+		return "", fmt.Errorf("配置不存在")
 	}
 	instruction = strings.TrimSpace(instruction)
 	if instruction == "" {
-		return LoreEditPlan{}, fmt.Errorf("资料库编辑指令不能为空")
+		return "", fmt.Errorf("资料库编辑指令不能为空")
 	}
 	temperature := float32(0.1)
 	cm, err := openai.NewChatModel(ctx, &openai.ChatModelConfig{
@@ -38,26 +55,84 @@ func GenerateLoreEditPlan(ctx context.Context, cfg *config.Config, instruction s
 		},
 	})
 	if err != nil {
-		return LoreEditPlan{}, fmt.Errorf("创建资料库编辑模型失败: %w", err)
+		return "", fmt.Errorf("创建资料库编辑模型失败: %w", err)
 	}
-	itemsJSON, err := json.MarshalIndent(items, "", "  ")
+	userPrompt, referencedItems, err := buildLoreUserPrompt(instruction, items, references, history)
 	if err != nil {
-		return LoreEditPlan{}, fmt.Errorf("序列化资料库失败: %w", err)
+		return "", err
 	}
-	userPrompt := fmt.Sprintf("用户编辑指令：\n%s\n\n当前资料库 JSON：\n%s", instruction, string(itemsJSON))
-	log.Printf("[lore-editor-agent] generate begin instruction=%s items=%d", promptPartSummary(instruction), len(items))
-	msg, err := cm.Generate(ctx, []*schema.Message{
+	log.Printf("[lore-editor-agent] generate begin instruction=%s items=%d references=%d stream=%t", promptPartSummary(instruction), len(items), len(referencedItems), emit != nil)
+	messages := []*schema.Message{
 		schema.SystemMessage(loreEditorSystemInstruction()),
 		schema.UserMessage(userPrompt),
-	})
-	if err != nil {
-		return LoreEditPlan{}, fmt.Errorf("生成资料库编辑方案失败: %w", err)
 	}
-	if msg == nil {
+	if emit == nil {
+		msg, err := cm.Generate(ctx, messages)
+		if err != nil {
+			return "", fmt.Errorf("生成资料库编辑方案失败: %w", err)
+		}
+		if msg == nil {
+			return "", fmt.Errorf("资料库编辑模型返回为空")
+		}
+		return strings.TrimSpace(msg.Content), nil
+	}
+
+	stream, err := cm.Stream(ctx, messages)
+	if err != nil {
+		return "", fmt.Errorf("生成资料库编辑方案失败: %w", err)
+	}
+	defer stream.Close()
+
+	var content strings.Builder
+	for {
+		msg, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", fmt.Errorf("接收资料库编辑方案失败: %w", err)
+		}
+		if msg == nil {
+			continue
+		}
+		if msg.ReasoningContent != "" {
+			emit(Event{Type: "thinking", Data: map[string]string{"content": msg.ReasoningContent}})
+		}
+		if msg.Content != "" {
+			content.WriteString(msg.Content)
+			emit(Event{Type: "chunk", Data: map[string]string{"content": msg.Content}})
+		}
+	}
+	return strings.TrimSpace(content.String()), nil
+}
+
+func buildLoreUserPrompt(instruction string, items []book.LoreItem, references []string, history []*schema.Message) (string, []book.LoreItem, error) {
+	itemsJSON, err := json.MarshalIndent(items, "", "  ")
+	if err != nil {
+		return "", nil, fmt.Errorf("序列化资料库失败: %w", err)
+	}
+	referencedItems := collectLoreReferencedItems(instruction, references, items)
+	historyText := formatLoreHistory(history)
+	userPrompt := fmt.Sprintf("用户编辑指令：\n%s\n\n当前资料库 JSON：\n%s", instruction, string(itemsJSON))
+	if len(referencedItems) > 0 {
+		refsJSON, err := json.MarshalIndent(referencedItems, "", "  ")
+		if err != nil {
+			return "", nil, fmt.Errorf("序列化引用资料失败: %w", err)
+		}
+		userPrompt = fmt.Sprintf("用户编辑指令：\n%s\n\n用户明确 @ 引用的资料条目 JSON：\n%s\n\n当前资料库 JSON：\n%s", instruction, string(refsJSON), string(itemsJSON))
+	}
+	if historyText != "" {
+		userPrompt = fmt.Sprintf("以下是 /clear 之后的资料库 Agent 有效对话上下文，仅用于理解用户连续指令，不要把历史意图当成本轮任务：\n%s\n\n%s", historyText, userPrompt)
+	}
+	return userPrompt, referencedItems, nil
+}
+
+func parseLoreEditPlan(content string) (LoreEditPlan, error) {
+	if strings.TrimSpace(content) == "" {
 		return LoreEditPlan{}, fmt.Errorf("资料库编辑模型返回为空")
 	}
 	var plan LoreEditPlan
-	if err := json.Unmarshal([]byte(strings.TrimSpace(msg.Content)), &plan); err != nil {
+	if err := json.Unmarshal([]byte(strings.TrimSpace(content)), &plan); err != nil {
 		return LoreEditPlan{}, fmt.Errorf("解析资料库编辑方案失败: %w", err)
 	}
 	if strings.TrimSpace(plan.Message) == "" {
@@ -68,6 +143,58 @@ func GenerateLoreEditPlan(ctx context.Context, cfg *config.Config, instruction s
 	}
 	log.Printf("[lore-editor-agent] generate done message=%q ops=%d", plan.Message, len(plan.Ops))
 	return plan, nil
+}
+
+func formatLoreHistory(history []*schema.Message) string {
+	if len(history) == 0 {
+		return ""
+	}
+	lines := make([]string, 0, len(history))
+	for _, msg := range history {
+		if msg == nil || strings.TrimSpace(msg.Content) == "" {
+			continue
+		}
+		role := "assistant"
+		if msg.Role == schema.User {
+			role = "user"
+		}
+		lines = append(lines, fmt.Sprintf("%s: %s", role, strings.TrimSpace(msg.Content)))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func collectLoreReferencedItems(instruction string, references []string, items []book.LoreItem) []book.LoreItem {
+	selected := make(map[string]struct{})
+	for _, ref := range references {
+		ref = strings.TrimSpace(ref)
+		if ref == "" {
+			continue
+		}
+		for _, item := range items {
+			if strings.EqualFold(item.ID, ref) || item.Name == ref {
+				selected[item.ID] = struct{}{}
+			}
+		}
+	}
+	for _, item := range items {
+		if item.ID != "" && strings.Contains(instruction, "@"+item.ID) {
+			selected[item.ID] = struct{}{}
+			continue
+		}
+		if item.Name != "" && strings.Contains(instruction, "@"+item.Name) {
+			selected[item.ID] = struct{}{}
+		}
+	}
+	if len(selected) == 0 {
+		return nil
+	}
+	result := make([]book.LoreItem, 0, len(selected))
+	for _, item := range items {
+		if _, ok := selected[item.ID]; ok {
+			result = append(result, item)
+		}
+	}
+	return result
 }
 
 func loreEditorSystemInstruction() string {
@@ -99,5 +226,7 @@ JSON 格式：
 3. create 操作要选择准确类型和重要度；不知道类型时用 other，不知道重要度时用 important。
 4. content 使用中文 Markdown，保留用户已有设定中仍然有效的信息。
 5. 可以一次返回多个操作，以完成用户要求的全资料库整理、合并、改名、补充、删除或一致性修正。
-6. 用户要求不明确时，只做低风险整理和补充，不删除资料。`)
+6. 用户没有 @ 引用具体条目时，根据指令在全资料库中自行判断需要修改哪些条目，可以一次修改多个条目。
+7. 用户 @ 引用具体条目时，优先围绕引用条目执行；除非指令明确要求影响其他条目、全库整理、创建新条目或删除关联条目，不要改动未引用条目。
+8. 用户要求不明确时，只做低风险整理和补充，不删除资料。`)
 }

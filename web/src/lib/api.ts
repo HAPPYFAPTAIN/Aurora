@@ -398,12 +398,40 @@ export async function deleteLoreItem(id: string): Promise<void> {
   await requestJSON(`/api/lore/items/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
 
-export async function runLoreAgent(instruction: string): Promise<LoreAgentResult> {
+export async function runLoreAgent(instruction: string, references: string[] = []): Promise<LoreAgentResult> {
   return requestJSON('/api/lore/agent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ instruction }),
+    body: JSON.stringify({ instruction, references }),
   })
+}
+
+export async function runLoreAgentStream(instruction: string, references: string[] = []): Promise<ReadableStream<SSEEvent>> {
+  const res = await fetch('/api/lore/agent/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ instruction, references }),
+  })
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`
+    try {
+      const data = await res.json()
+      message = data.error || message
+    } catch {
+      // keep HTTP fallback
+    }
+    throw new Error(message)
+  }
+  if (!res.body) throw new Error('No response body')
+  return parseSSEStream(res.body)
+}
+
+export async function getLoreAgentMessages(): Promise<ChatMessage[]> {
+  return requestJSON('/api/lore/agent/messages')
+}
+
+export async function clearLoreAgentSession(): Promise<void> {
+  await requestJSON('/api/lore/agent/clear', { method: 'POST' })
 }
 
 export async function getLoreVersions(): Promise<LoreVersion[]> {
