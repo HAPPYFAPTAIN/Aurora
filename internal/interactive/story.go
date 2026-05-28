@@ -17,6 +17,7 @@ import (
 
 const schemaVersion = 1
 const maxStoryLineBytes = 16 * 1024 * 1024
+const defaultFirstStoryTitle = "新的开始"
 
 // Store manages interactive story data inside a workspace.
 type Store struct {
@@ -227,18 +228,23 @@ func (s *Store) CreateStory(req CreateStoryRequest) (StorySummary, error) {
 	if err := os.MkdirAll(s.storyDir(), 0o755); err != nil {
 		return StorySummary{}, fmt.Errorf("创建互动故事目录失败: %w", err)
 	}
+	index, err := s.readIndexLocked()
+	if err != nil {
+		return StorySummary{}, err
+	}
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		title = defaultStoryTitle(index.Stories)
+	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	story := StorySummary{
 		ID:            newID("st"),
-		Title:         strings.TrimSpace(req.Title),
+		Title:         title,
 		Origin:        strings.TrimSpace(req.Origin),
 		StoryTellerID: strings.TrimSpace(req.StoryTellerID),
 		CreatedAt:     now,
 		UpdatedAt:     now,
 		Branches:      1,
-	}
-	if story.Title == "" {
-		return StorySummary{}, fmt.Errorf("故事标题不能为空")
 	}
 	if story.StoryTellerID == "" {
 		story.StoryTellerID = "classic"
@@ -262,10 +268,6 @@ func (s *Store) CreateStory(req CreateStoryRequest) (StorySummary, error) {
 		return StorySummary{}, err
 	}
 
-	index, err := s.readIndexLocked()
-	if err != nil {
-		return StorySummary{}, err
-	}
 	index.CurrentStoryID = story.ID
 	index.Stories = append(index.Stories, story)
 	if err := s.writeIndexLocked(index); err != nil {
@@ -1030,6 +1032,31 @@ func findEventBranch(lines []map[string]any, eventID string) (string, bool) {
 		return branchID, branchID != ""
 	}
 	return "", false
+}
+
+func defaultStoryTitle(stories []StorySummary) string {
+	if len(stories) == 0 {
+		return defaultFirstStoryTitle
+	}
+	next := len(stories) + 1
+	for _, story := range stories {
+		title := strings.TrimSpace(story.Title)
+		if !strings.HasPrefix(title, "故事线") {
+			continue
+		}
+		rawNumber := strings.TrimSpace(strings.TrimPrefix(title, "故事线"))
+		if rawNumber == "" {
+			continue
+		}
+		number, err := strconv.Atoi(rawNumber)
+		if err == nil && number >= next {
+			next = number + 1
+		}
+	}
+	if next < 2 {
+		next = 2
+	}
+	return fmt.Sprintf("故事线 %d", next)
 }
 
 func (s *Store) readStoryLocked(storyID string) (StoryMeta, []map[string]any, error) {

@@ -23,13 +23,17 @@ export function StoryPicker({ stories, currentStoryId, tellers, onSelect, onCrea
   const [origin, setOrigin] = useState('')
   const defaultTeller = tellers[0]?.id || 'classic'
   const sidebar = layout === 'sidebar'
+  const suggestedTitle = defaultStoryTitle(stories)
 
-  const submit = () => {
-    if (!title.trim()) return
-    onCreate({ title: title.trim(), origin: origin.trim(), story_teller_id: defaultTeller })
+  const closeCreate = () => {
     setTitle('')
     setOrigin('')
     setCreating(false)
+  }
+
+  const submit = () => {
+    onCreate({ title: title.trim() || suggestedTitle, origin: origin.trim(), story_teller_id: defaultTeller })
+    closeCreate()
   }
 
   const selector = (
@@ -53,7 +57,17 @@ export function StoryPicker({ stories, currentStoryId, tellers, onSelect, onCrea
   )
 
   const createButton = (
-    <Popover open={creating} onOpenChange={setCreating}>
+    <Popover
+      open={creating}
+      onOpenChange={(open) => {
+        if (!open) {
+          closeCreate()
+          return
+        }
+        setCreating(true)
+        setTitle((current) => current.trim() ? current : suggestedTitle)
+      }}
+    >
       <PopoverTrigger asChild>
         <Button variant="ghost" size="xs" className="nova-nav-item">
           <Plus className="h-3 w-3" />
@@ -62,10 +76,10 @@ export function StoryPicker({ stories, currentStoryId, tellers, onSelect, onCrea
       </PopoverTrigger>
       <PopoverContent align="start" className="nova-panel w-80 border p-3 text-[var(--nova-text)] shadow-[var(--nova-shadow)]">
         <div className="mb-2 text-xs font-medium">创建故事线</div>
-        <Input className="nova-field mb-2 text-xs" placeholder="故事标题" value={title} onChange={(event) => setTitle(event.target.value)} />
+        <Input className="nova-field mb-2 text-xs" placeholder={suggestedTitle} value={title} onChange={(event) => setTitle(event.target.value)} />
         <Textarea className="nova-field mb-3 h-20 min-h-20 resize-none text-xs" placeholder="开端描述" value={origin} onChange={(event) => setOrigin(event.target.value)} />
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="xs" onClick={() => setCreating(false)}>取消</Button>
+          <Button variant="ghost" size="xs" onClick={closeCreate}>取消</Button>
           <Button size="xs" onClick={submit}>创建</Button>
         </div>
       </PopoverContent>
@@ -101,4 +115,16 @@ export function StoryPicker({ stories, currentStoryId, tellers, onSelect, onCrea
       {deleteButton}
     </div>
   )
+}
+
+function defaultStoryTitle(stories: StorySummary[]): string {
+  if (stories.length === 0) return '新的开始'
+
+  let next = stories.length + 1
+  for (const story of stories) {
+    const match = story.title.trim().match(/^故事线\s*(\d+)$/)
+    if (!match) continue
+    next = Math.max(next, Number(match[1]) + 1)
+  }
+  return `故事线 ${Math.max(2, next)}`
 }
