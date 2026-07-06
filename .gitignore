@@ -15,8 +15,8 @@ material-index/search-server/search-server.exe
 .nova/当海风吹散硝烟/
 .nova/禁忌之爱/
 .nova/雪落扬子江/
-# User novel chapters
-.nova/文档/
+# User novel chapters (存档 = archive)
+.nova/存档/
 # Workspace state
 .nova/book_meta/
 .nova/books.json
