@@ -33,6 +33,12 @@ material-index/cards/
 # Logs
 log/
 
+# Test / experiment / cache proxy artifacts
+token-cache-experiment/
+cache-enhancement-report/
+tools/cache-proxy/
+.trae-html-share-packages/
+
 # OS
 Thumbs.db
 .DS_Store
