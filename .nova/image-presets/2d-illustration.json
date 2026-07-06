@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "id": "2d-illustration",
+  "name": "2D插画",
+  "description": "偏小说插图、手绘感与清晰氛围表达",
+  "prompt": "## 图像请求 Prompt（tool_request）\n\n以精致 2D 插画呈现：线条干净，色块和光影层次清晰，适合小说章节插图和角色场景氛围图。构图要突出主体与情绪，背景保留足够叙事信息但不喧宾夺主。避免过度写实摄影质感、3D 渲染感、文字、水印、logo 和未来剧情剧透。",
+  "slots": [
+    {
+      "id": "tool_request",
+      "name": "图像请求 Prompt",
+      "target": "tool_request",
+      "enabled": true,
+      "content": "以精致 2D 插画呈现：线条干净，色块和光影层次清晰，适合小说章节插图和角色场景氛围图。构图要突出主体与情绪，背景保留足够叙事信息但不喧宾夺主。避免过度写实摄影质感、3D 渲染感、文字、水印、logo 和未来剧情剧透。"
+    }
+  ],
+  "tags": [
+    "2D",
+    "插画"
+  ],
+  "custom": false
+}

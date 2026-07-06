@@ -1,0 +1,43 @@
+# Binary
+denova.exe
+denova
+Aurora.exe
+Aurora
+search-server.exe
+
+# Go build output
+material-index/search-server/search-server.exe
+
+# === Workspace data (contains API keys & user creative content) ===
+# Workspace config has real API keys - never commit
+.nova/config.toml
+# Book project directories (user's creative writing + per-book configs)
+.nova/当海风吹散硝烟/
+.nova/禁忌之爱/
+.nova/雪落扬子江/
+# User novel chapters
+.nova/文档/
+# Workspace state
+.nova/book_meta/
+.nova/books.json
+.nova/messages/
+
+# External skills with their own git repos
+skills/humanizer-zh/
+
+# Search service runtime data
+material-index/imports/*.md
+material-index/imports/*.txt
+material-index/cards/
+
+# Logs
+log/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp

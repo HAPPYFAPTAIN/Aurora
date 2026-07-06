@@ -1,0 +1,45 @@
+﻿# 资料卡片搜索增强服务配置
+#
+# 此服务直接对接 Aurora 的资料库 API（/api/lore/items），
+# 提供全文搜索、详情披露、工作区搜索等增强功能。
+#
+# 配置优先级：环境变量 > 本文件 > Aurora config.toml > 默认值
+
+# 搜索服务开关
+enabled = true
+
+# 监听端口（默认 8927，不与 Aurora 的 8080/8081 冲突）
+port = "8927"
+
+# Aurora 后端 API 地址（自动从 Aurora config.toml 的 backend_port 读取）
+# Aurora_api_url = "http://localhost:8080"
+
+# Aurora 工作区根目录（留空则自动检测）
+# workspace = "f:/Aurora"
+
+# AI 大模型配置（自动从 Aurora config.toml 的 [[model_profiles]] 读取）
+# 如果 Aurora config.toml 中 openai_api_key 为空，需在此处或环境变量设置
+# openai_api_key = ""
+# openai_base_url = "https://api.deepseek.com"
+# openai_model = "deepseek-v4-pro"
+
+# 启动时自动构建索引
+auto_index = true
+
+# === 使用说明 ===
+#
+# 启动：
+#   1. 先启动 Aurora（搜索服务依赖 Aurora 的 API）
+#   2. 运行 启动搜索服务.bat
+#   3. 浏览器打开 http://localhost:8927
+#
+# 功能：
+#   - 搜索资料库卡片（n-gram 中文索引、评分排序、关键词高亮）
+#   - 详情披露（点击卡片头展开完整内容）
+#   - 同时搜索章节/设定文件（通过 Aurora workspace search API）
+#   - 导入文本文件（md/txt）
+#   - AI 按模板提炼卡片并写入 Aurora 资料库
+#   - 删除资料库卡片
+#
+# 关闭：关闭进程即可
+# 移除：删除 search-server/ 目录

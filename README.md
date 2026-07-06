@@ -1,0 +1,215 @@
+<p align="center">
+  <img src="./web/public/favicon.svg" alt="Aurora 图标" width="76" height="76">
+</p>
+
+<p align="center">
+  <strong>Aurora 是面向小说写作与剧情驱动游戏的 AI 创作平台，由 AI Agents、Skills、Subagent Workflows、Automations、图像生成和版本化项目工作区驱动。</strong>
+</p>
+
+<p align="center">
+  <a href="README.en.md">English</a> | 中文
+</p>
+
+<p align="center">
+  <a href="https://github.com/HAPPYFAPTAIN/Aurora/releases"><img alt="Release" src="https://img.shields.io/github/v/release/HAPPYFAPTAIN/Aurora?style=flat-square"></a>
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/HAPPYFAPTAIN/Aurora?style=flat-square"></a>
+  <img alt="Go" src="https://img.shields.io/badge/Go-1.26%2B-00ADD8?style=flat-square&logo=go&logoColor=white">
+  <img alt="Node.js" src="https://img.shields.io/badge/Node.js-20%2B-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white">
+</p>
+
+<p align="center">
+  当前版本：<strong>v0.1.18</strong>（2026-07-01） · Beta
+</p>
+
+![Aurora 写作模式](./img/ide.png)
+
+<details>
+<summary>查看更多界面截图</summary>
+
+### 游戏模式
+
+![Aurora 游戏模式](./img/interactive.png)
+
+### 剧情分支
+
+![剧情分支](./img/branch.png)
+
+### 资料库
+
+![Aurora 资料库](./img/setting.png)
+
+### 方案预设
+
+![Aurora 方案预设](./img/story-teller.png)
+
+</details>
+
+## 为什么选择 Aurora
+
+Aurora 面向长期创作项目和互动娱乐，把写作 IDE、互动故事、结构化资料库、Agent 工具调用、图像生成、自动化和本地版本管理放在同一个项目工作区里，让创作过程可以反复迭代、回溯和沉淀。
+
+你可以从原创灵感开始，也可以导入已有小说做同人、改编或续写；还可以导入 AI 酒馆角色卡，快速搭建互动文字冒险。模型上下文会按来源、用途和大小上限组织，避免把完整历史、日志或全部设定无界塞进下一轮对话。
+
+## 核心能力
+
+- **写作模式**：面向小说创作，支持 Markdown 编辑、多 Tab、全局搜索、章节统计、大纲、章节组细纲、进度追踪和现有小说导入。
+- **创作 Agent**：可读取选区、文件和资料库，调用工具生成或修改章节，并通过 Skills / SubAgents 适配不同写作任务、文风和工作流。
+- **游戏模式**：运行互动文字冒险，支持玩家输入、剧情分支、故事线切换、行动建议、场景记忆和长期故事记忆。
+- **资料库与预设**：沉淀角色、世界观、地点、势力、规则、物品等稳定设定；叙事方案和图像方案可分别管理并在写作与游戏中复用。
+- **图像创作**：支持章节插画、互动图像和书籍封面生成，复用 OpenAI 兼容图像模型配置，并在界面中预览和管理结果。
+- **上下文管理**：渐进式组织模型可见上下文，支持 Memory Compact、缓存优化和有界工具结果，降低长篇创作的上下文噪音与 token 成本。
+- **版本与恢复**：基于本地 Git 保存版本、查看 Diff、恢复历史，并支持定时保存和 Agent 大量输出后的自动保存。
+- **自动化**：支持定时任务、Review、自动续写和自定义 Prompt 工作流。
+- **产品化体验**：中英文界面、浅色/深色主题、OpenAI 兼容模型配置、远程访问、PWA 手机使用，以及 Windows / macOS / Linux 全平台支持。
+- **资料卡片索引**：内置资料卡片导入、AI 提炼和全文搜索增强系统，支持从文本素材自动生成结构化知识卡片并写入资料库。
+
+## 写作模式与游戏模式
+
+Aurora 有两个并列工作台。写作模式关注小说生产线：构思、设定、大纲、章节细纲、正文和进度；游戏模式关注可游玩的互动叙事：玩家行动、剧情分支、场景记忆、故事线和选择推进。
+
+两种模式会共享适合长期复用的资产，例如资料库、方案预设、模型与 Agent 配置、Skills、版本管理和基础设置。写作进度、章节细纲等生产状态不会自动进入游戏模式；如果互动故事需要引用某段正文或当前进度，建议先把稳定信息沉淀进资料库，或在输入中明确引用。
+
+## 欢迎交流
+
+Aurora 仍在快速迭代中，欢迎反馈问题、分享用法或一起讨论创作工作流。
+
+<p align="center">
+  <img src="./img/wechat.png" alt="微信交流" width="240">
+</p>
+
+## 快速开始
+
+### 下载 Release
+
+从 [GitHub Releases](https://github.com/HAPPYFAPTAIN/Aurora/releases) 下载对应平台压缩包，解压后运行：
+
+```bash
+./Aurora
+```
+
+Windows 用户运行 `Aurora.exe`。macOS 如果提示安全限制，可以执行：
+
+```bash
+xattr -dr com.apple.quarantine Aurora
+```
+
+### 从源码运行
+
+需要 Go 1.26+、Node.js 20+ 和 pnpm。
+
+```bash
+git clone https://github.com/HAPPYFAPTAIN/Aurora.git
+cd Aurora
+corepack enable
+./bootstrap.sh
+```
+
+默认地址：
+
+- 前端：`http://localhost:5173`
+- 后端：`http://localhost:8080`
+
+## 模型与配置
+
+Aurora 使用 OpenAI 兼容接口。推荐先在设置页配置语言模型、图像模型、Agent 参数、默认写作 Skill、编辑器、游戏模式、版本管理、语言、主题和字体。
+
+需要脚本化启动或部署时，也可以用环境变量覆盖模型配置：
+
+```bash
+export OPENAI_API_KEY="your-api-key"
+export OPENAI_BASE_URL="https://api.deepseek.com"
+export OPENAI_MODEL="deepseek-v4-pro"
+export OPENAI_IMAGE_API_KEY="your-openai-image-key"
+export OPENAI_IMAGE_BASE_URL="https://api.openai.com/v1"
+export OPENAI_IMAGE_MODEL="gpt-image-1"
+```
+
+可选 Aurora 启动环境变量：
+
+```bash
+export AURORA_WORKSPACE="/path/to/your-workspace"
+export AURORA_DIR="./.aurora"
+export AURORA_SKILLS_DIR="./skills"
+export AURORA_WEB_DIR="./web"
+export AURORA_BACKEND_PORT="8080"
+export AURORA_FRONTEND_PORT="5173"
+```
+
+配置优先级：
+
+```text
+内置默认值 < 全局 config.toml < 用户级配置 < 工作区级配置 < 环境变量
+```
+
+## 资料卡片索引模块
+
+Aurora 内置资料卡片索引系统，包含：
+
+- **Denova Skill 插件**（`skills/material-index/`）：Agent 可直接在对话中导入文本、按模板提炼卡片、搜索和整理资料库
+- **搜索增强服务**（`material-index/search-server/`）：可选的全文搜索 Web 界面，支持 n-gram 中文索引、详情披露和工作区搜索
+- **卡片模板**（`skills/material-index/templates/`）：人物、事件、地点、世界观、势力、规则、物品、概念、分析 9 种模板
+
+详见 [material-index/README.md](./material-index/README.md)。
+
+## 远程访问与手机使用
+
+Aurora 可以在本机、局域网或自托管服务器上使用。Release 包已包含前端资源；从源码部署时可先构建前端：
+
+```bash
+pnpm --dir web build
+```
+
+在 **设置页 → 远程访问** 开启「允许局域网访问」并设置用户名和密码后，其他设备可以打开设置页展示的访问地址。手机浏览器登录后可添加到主屏幕，以接近独立应用的方式使用。
+
+如果要通过公网或域名访问，建议使用 Caddy / Nginx 等反向代理提供 HTTPS，避免凭据明文传输，并确保浏览器剪贴板、PWA 等能力正常工作。
+
+Caddy 示例：
+
+```text
+aurora.example.com {
+    reverse_proxy 127.0.0.1:8080
+}
+```
+
+## 开发
+
+启动前后端：
+
+```bash
+./bootstrap.sh
+```
+
+分开启动前端或后端：
+
+```bash
+./bootstrap.sh fe
+./bootstrap.sh be
+```
+
+允许局域网设备访问前端开发服务：
+
+```bash
+./bootstrap.sh fe --lan
+```
+
+## 赞助项目
+
+> 给项目冲点token，帮助这个项目持续迭代，持续开源，你的支持真的很重要！非常感谢！
+
+<p align="center">
+  <img src="./img/donate.png" alt="捐赠" width="240">
+</p>
+
+## Star History
+
+<a href="https://www.star-history.com/#HAPPYFAPTAIN/Aurora&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=HAPPYFAPTAIN/Aurora&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=HAPPYFAPTAIN/Aurora&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=HAPPYFAPTAIN/Aurora&type=date&legend=top-left" />
+ </picture>
+</a>
+
+## License
+
+[Apache-2.0](./LICENSE)
