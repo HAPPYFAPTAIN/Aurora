@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  当前版本：<strong>v0.1.18</strong>（2026-07-01） · Beta
+  当前版本：<strong>v0.1.19-dev</strong>（2026-07-10） · Beta
 </p>
 
 ![Aurora 写作模式](./img/ide.png)
@@ -58,6 +58,8 @@ Aurora 面向长期创作项目和互动娱乐，把写作 IDE、互动故事、
 - **资料库与预设**：沉淀角色、世界观、地点、势力、规则、物品等稳定设定；叙事风格负责文风、提示词槽位和场景风格，故事导演可插拔组合叙事风格、事件包、TRPG 检定、状态系统、Story Memory Structure、开局选择器和图像方案，且每个模块都可独立关闭。
 - **图像创作**：支持章节插画、互动图像和书籍封面生成，复用 OpenAI 兼容图像模型配置，并在界面中预览和管理结果。
 - **上下文管理**：渐进式组织模型可见上下文，支持 Memory Compact、缓存优化和有界工具结果，降低长篇创作的上下文噪音与 token 成本。
+- **生命周期钩子**：借鉴 QwenPaw 设计，在 Agent 运行的四个阶段（运行开始、模型调用前、工具结果后、运行完成）注入自定义回调，支持按优先级注册多个钩子，用于上下文注入、工具结果截断、记忆触发等场景。
+- **异步记忆系统**：后台 goroutine + channel 串行处理记忆任务，将单次大型 LLM 调用拆分为分块管道（当前状态→主角信息→重要角色→事件剧情），每个分块完成后通过 SSE 实时推送进度，避免 token 溢出和输出截断。
 - **版本与恢复**：基于本地 Git 保存版本、查看 Diff、恢复历史，并支持定时保存和 Agent 大量输出后的自动保存。
 - **自动化**：支持定时任务、Review、自动续写和自定义 Prompt 工作流。
 - **产品化体验**：中英文界面、浅色/深色主题、OpenAI 兼容模型配置、远程访问、PWA 手机使用，以及 Windows / macOS / Linux 全平台支持。
@@ -102,7 +104,7 @@ xattr -dr com.apple.quarantine Aurora
 
 ```bash
 git clone https://github.com/HAPPYFAPTAIN/Aurora.git
-cd Aurora
+cd Aurora/aurora-src
 corepack enable
 ./bootstrap.sh
 ```
@@ -148,7 +150,7 @@ export AURORA_FRONTEND_PORT="5173"
 
 Aurora 内置资料卡片索引系统，包含：
 
-- **Denova Skill 插件**（`skills/material-index/`）：Agent 可直接在对话中导入文本、按模板提炼卡片、搜索和整理资料库
+- **Aurora Skill 插件**（`skills/material-index/`）：Agent 可直接在对话中导入文本、按模板提炼卡片、搜索和整理资料库
 - **搜索增强服务**（`material-index/search-server/`）：可选的全文搜索 Web 界面，支持 n-gram 中文索引、详情披露和工作区搜索
 - **卡片模板**（`skills/material-index/templates/`）：人物、事件、地点、世界观、势力、规则、物品、概念、分析 9 种模板
 
