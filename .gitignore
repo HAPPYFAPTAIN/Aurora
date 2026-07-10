@@ -39,6 +39,9 @@ cache-enhancement-report/
 tools/cache-proxy/
 .trae-html-share-packages/
 
+# Playwright CLI artifacts
+.playwright-cli/
+
 # OS
 Thumbs.db
 .DS_Store
@@ -46,4 +49,5 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
+.trae/
 *.swp
