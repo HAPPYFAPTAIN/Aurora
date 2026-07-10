@@ -113,6 +113,8 @@ const chat = {
   'chat.action.nextVersion': 'Switch to next version',
   'chat.action.regenerateTurn': 'Regenerate this turn',
   'chat.action.scrollToBottom': 'Back to bottom',
+  'chat.action.speak': 'Speak',
+  'chat.action.stopSpeaking': 'Stop speaking',
   'chat.tool.calling': 'Calling Tool',
   'chat.tool.writing': 'Writing...',
   'chat.tool.chapterWriting': 'Writing chapter',

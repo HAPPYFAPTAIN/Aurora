@@ -29,6 +29,11 @@ type Settings struct {
 	ImageAPIModel             string                       `toml:"image_api_model,omitempty" json:"image_api_model,omitempty"`
 	DefaultImageAPIProfileID  string                       `toml:"default_image_api_profile_id,omitempty" json:"default_image_api_profile_id,omitempty"`
 	ImageAPIProfiles          []ImageAPIProfileSettings    `toml:"image_api_profiles,omitempty" json:"image_api_profiles,omitempty"`
+	TTSAPIKey                 string                       `toml:"tts_api_key,omitempty" json:"tts_api_key,omitempty"`
+	TTSAPIBaseURL             string                       `toml:"tts_api_base_url,omitempty" json:"tts_api_base_url,omitempty"`
+	TTSAPIModel               string                       `toml:"tts_api_model,omitempty" json:"tts_api_model,omitempty"`
+	DefaultTTSAPIProfileID    string                       `toml:"default_tts_api_profile_id,omitempty" json:"default_tts_api_profile_id,omitempty"`
+	TTSAPIProfiles            []TTSAPIProfileSettings      `toml:"tts_api_profiles,omitempty" json:"tts_api_profiles,omitempty"`
 	AgentModels               AgentModelSettings           `toml:"agent_models,omitempty" json:"agent_models,omitempty"`
 	AgentTools                AgentToolSettings            `toml:"agent_tools,omitempty" json:"agent_tools,omitempty"`
 	AgentPrompts              AgentPromptSettings          `toml:"agent_prompts,omitempty" json:"agent_prompts,omitempty"`
@@ -118,6 +123,9 @@ func DefaultSettings() Settings {
 		ImageAPIBaseURL:             DefaultImageAPIBaseURL,
 		ImageAPIModel:               DefaultImageAPIModel,
 		DefaultImageAPIProfileID:    DefaultImageAPIProfileID,
+		TTSAPIBaseURL:               DefaultTTSAPIBaseURL,
+		TTSAPIModel:                 DefaultTTSAPIModel,
+		DefaultTTSAPIProfileID:      DefaultTTSAPIProfileID,
 		SkillsDir:                   "./skills",
 		DenovaDir:                   "./" + workspacepath.DataDirName,
 		NovaDir:                     "./" + workspacepath.DataDirName,
@@ -203,6 +211,19 @@ func Merge(parent, child Settings) Settings {
 		out.DefaultImageAPIProfileID = child.DefaultImageAPIProfileID
 	}
 	out.ImageAPIProfiles = mergeImageAPIProfiles(out.ImageAPIProfiles, child.ImageAPIProfiles)
+	if child.TTSAPIKey != "" {
+		out.TTSAPIKey = child.TTSAPIKey
+	}
+	if child.TTSAPIBaseURL != "" {
+		out.TTSAPIBaseURL = child.TTSAPIBaseURL
+	}
+	if child.TTSAPIModel != "" {
+		out.TTSAPIModel = child.TTSAPIModel
+	}
+	if child.DefaultTTSAPIProfileID != "" {
+		out.DefaultTTSAPIProfileID = child.DefaultTTSAPIProfileID
+	}
+	out.TTSAPIProfiles = mergeTTSAPIProfiles(out.TTSAPIProfiles, child.TTSAPIProfiles)
 	out.AgentModels = MergeAgentModelSettings(out.AgentModels, child.AgentModels)
 	out.AgentTools = MergeAgentToolSettings(out.AgentTools, child.AgentTools)
 	out.AgentPrompts = MergeAgentPromptSettings(out.AgentPrompts, child.AgentPrompts)
@@ -582,6 +603,10 @@ func sanitizeEditableSettings(s Settings) Settings {
 	s.AgentToolResultLimitKB = normalizeAgentToolResultLimitKB(s.AgentToolResultLimitKB)
 	s.ModelProfiles = sanitizeModelProfiles(s.ModelProfiles)
 	s.ImageAPIProfiles = sanitizeImageAPIProfiles(s.ImageAPIProfiles)
+	s.TTSAPIBaseURL = strings.TrimSpace(s.TTSAPIBaseURL)
+	s.TTSAPIModel = strings.TrimSpace(s.TTSAPIModel)
+	s.DefaultTTSAPIProfileID = strings.TrimSpace(s.DefaultTTSAPIProfileID)
+	s.TTSAPIProfiles = sanitizeTTSAPIProfiles(s.TTSAPIProfiles)
 	if defaultProfile, ok := defaultModelProfile(s.ModelProfiles); ok {
 		if defaultProfile.OpenAIAPIKey != "" {
 			s.OpenAIAPIKey = ""

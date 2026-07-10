@@ -23,6 +23,11 @@ type Config struct {
 	ImageAPIModel               string                       `toml:"image_api_model"`
 	DefaultImageAPIProfileID    string                       `toml:"default_image_api_profile_id"`
 	ImageAPIProfiles            []ImageAPIProfileSettings    `toml:"image_api_profiles"`
+	TTSAPIKey                   string                       `toml:"tts_api_key"`
+	TTSAPIBaseURL               string                       `toml:"tts_api_base_url"`
+	TTSAPIModel                 string                       `toml:"tts_api_model"`
+	DefaultTTSAPIProfileID      string                       `toml:"default_tts_api_profile_id"`
+	TTSAPIProfiles              []TTSAPIProfileSettings      `toml:"tts_api_profiles"`
 	AgentModels                 AgentModelSettings           `toml:"agent_models"`
 	AgentTools                  AgentToolSettings            `toml:"agent_tools"`
 	AgentPrompts                AgentPromptSettings          `toml:"agent_prompts"`
@@ -89,6 +94,11 @@ func LoadWithWorkspace(workspace string) (*Config, LayeredSettings, error) {
 		ImageAPIModel:               s.ImageAPIModel,
 		DefaultImageAPIProfileID:    s.DefaultImageAPIProfileID,
 		ImageAPIProfiles:            s.ImageAPIProfiles,
+		TTSAPIKey:                   s.TTSAPIKey,
+		TTSAPIBaseURL:               s.TTSAPIBaseURL,
+		TTSAPIModel:                 s.TTSAPIModel,
+		DefaultTTSAPIProfileID:      s.DefaultTTSAPIProfileID,
+		TTSAPIProfiles:              s.TTSAPIProfiles,
 		AgentModels:                 s.AgentModels,
 		AgentTools:                  s.AgentTools,
 		AgentPrompts:                s.AgentPrompts,
@@ -205,6 +215,11 @@ func settingsFromConfig(cfg *Config) Settings {
 		ImageAPIModel:            cfg.ImageAPIModel,
 		DefaultImageAPIProfileID: cfg.DefaultImageAPIProfileID,
 		ImageAPIProfiles:         cfg.ImageAPIProfiles,
+		TTSAPIKey:               cfg.TTSAPIKey,
+		TTSAPIBaseURL:           cfg.TTSAPIBaseURL,
+		TTSAPIModel:             cfg.TTSAPIModel,
+		DefaultTTSAPIProfileID:  cfg.DefaultTTSAPIProfileID,
+		TTSAPIProfiles:          cfg.TTSAPIProfiles,
 		AgentModels:              cfg.AgentModels,
 		AgentTools:               cfg.AgentTools,
 		AgentPrompts:             cfg.AgentPrompts,
@@ -287,6 +302,11 @@ func Load() *Config {
 			ImageAPIModel:               d.ImageAPIModel,
 			DefaultImageAPIProfileID:    d.DefaultImageAPIProfileID,
 			ImageAPIProfiles:            d.ImageAPIProfiles,
+			TTSAPIKey:                   d.TTSAPIKey,
+			TTSAPIBaseURL:               d.TTSAPIBaseURL,
+			TTSAPIModel:                 d.TTSAPIModel,
+			DefaultTTSAPIProfileID:      d.DefaultTTSAPIProfileID,
+			TTSAPIProfiles:              d.TTSAPIProfiles,
 			AgentModels:                 d.AgentModels,
 			AgentTools:                  d.AgentTools,
 			AgentPrompts:                d.AgentPrompts,

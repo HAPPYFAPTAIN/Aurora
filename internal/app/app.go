@@ -45,6 +45,7 @@ type App struct {
 	automationApp  *AutomationAppService
 	skillsApp      *SkillsAppService
 	imageApp       *ImageAppService
+	ttsApp         *TTSAppService
 	servicesOnce   sync.Once
 
 	mu sync.RWMutex
@@ -101,6 +102,7 @@ func (a *App) ensureServices() {
 		a.automationApp = &AutomationAppService{app: a}
 		a.skillsApp = &SkillsAppService{app: a}
 		a.imageApp = &ImageAppService{app: a}
+		a.ttsApp = &TTSAppService{app: a}
 	})
 }
 
@@ -127,6 +129,11 @@ func (a *App) lore() *LoreAppService {
 func (a *App) images() *ImageAppService {
 	a.ensureServices()
 	return a.imageApp
+}
+
+func (a *App) tts() *TTSAppService {
+	a.ensureServices()
+	return a.ttsApp
 }
 
 func (a *App) configManager() *ConfigManagerAppService {

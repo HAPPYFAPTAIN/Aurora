@@ -3,13 +3,14 @@ import type { CSSProperties, ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Activity, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleDot, ClipboardCheck, ClipboardList, Clock3, Copy, FileText, ImagePlus, ListTodo, Loader2, PanelRightOpen, Pencil, RefreshCw, Send, X } from 'lucide-react'
+import { Activity, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleDot, ClipboardCheck, ClipboardList, Clock3, Copy, FileText, ImagePlus, ListTodo, Loader2, PanelRightOpen, Pencil, RefreshCw, Send, Volume2, VolumeX, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ImagePreviewDialog } from '@/components/common/ImagePreviewDialog'
 import { workspaceAssetURL, type ChapterIllustration, type ChatMessage, type InteractiveImage, type InteractiveImageError } from '@/lib/api'
 import { findDialogueHighlightRanges } from '@/lib/dialogue-highlight'
 import { isWorkspaceImagePath } from '@/lib/workspace-file-kind'
 import { useBottomScrollLock } from '@/hooks/useBottomScrollLock'
+import { useTTS } from '@/features/tts/useTTS'
 import { TooltipIconButton } from '@/components/common/tooltip-icon-button'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { subAgentSessionKey } from './subagent-session'
@@ -55,6 +56,7 @@ export const MessageItem = memo(function MessageItem({ message, highlightDialogu
   const markedVersionIndex = message.turn_versions?.findIndex((version) => version.current) ?? -1
   const versionIndex = message.turn_version_index ?? markedVersionIndex
   const canSwitchVersion = role === 'assistant' && versionCount > 1 && versionIndex >= 0 && Boolean(onSwitchVersion) && !message.streaming
+  const tts = useTTS()
 
   switch (role) {
     case 'user':
@@ -112,6 +114,9 @@ export const MessageItem = memo(function MessageItem({ message, highlightDialogu
                 onSwitchVersion={canSwitchVersion ? onSwitchVersion : undefined}
                 versionIndex={versionIndex}
                 versionCount={versionCount}
+                ttsSpeakingMessageId={tts.speakingMessageId}
+                ttsLoading={tts.loading}
+                onSpeak={!message.streaming ? tts.speak : undefined}
               />
             </div>
           </div>
@@ -191,7 +196,7 @@ function TraceLinkButton({ runID, onOpenTrace }: { runID?: string; onOpenTrace?:
   )
 }
 
-function MessageInlineMeta({ message, content, align, onEdit, onGenerateInteractiveImage, generatingInteractiveImage = false, onRegenerate, onSwitchVersion, versionIndex = -1, versionCount = 0 }: { message: ChatMessage; content: string; align: 'left' | 'right'; onEdit?: (message: ChatMessage) => void; onGenerateInteractiveImage?: (message: ChatMessage) => void; generatingInteractiveImage?: boolean; onRegenerate?: (message: ChatMessage) => void; onSwitchVersion?: (message: ChatMessage, direction: -1 | 1) => void; versionIndex?: number; versionCount?: number }) {
+function MessageInlineMeta({ message, content, align, onEdit, onGenerateInteractiveImage, generatingInteractiveImage = false, onRegenerate, onSwitchVersion, versionIndex = -1, versionCount = 0, ttsSpeakingMessageId = null, ttsLoading = false, onSpeak }: { message: ChatMessage; content: string; align: 'left' | 'right'; onEdit?: (message: ChatMessage) => void; onGenerateInteractiveImage?: (message: ChatMessage) => void; generatingInteractiveImage?: boolean; onRegenerate?: (message: ChatMessage) => void; onSwitchVersion?: (message: ChatMessage, direction: -1 | 1) => void; versionIndex?: number; versionCount?: number; ttsSpeakingMessageId?: string | null; ttsLoading?: boolean; onSpeak?: (messageId: string, text: string) => void }) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
   const formatted = formatMessageHoverTime(message.created_at)
@@ -201,7 +206,7 @@ function MessageInlineMeta({ message, content, align, onEdit, onGenerateInteract
     tooltipSideOffset: messageActionTooltipSideOffset,
     useTooltipProvider: false,
   }
-  if (!formatted && !content && !onEdit && !onGenerateInteractiveImage && !onRegenerate && !canSwitchVersion) return null
+  if (!formatted && !content && !onEdit && !onGenerateInteractiveImage && !onRegenerate && !canSwitchVersion && !onSpeak) return null
   return (
     <TooltipProvider delayDuration={messageActionTooltipDelayMs} skipDelayDuration={messageActionTooltipSkipDelayMs} disableHoverableContent>
       <div className={`nova-message-meta nova-message-meta-${align}`} aria-label={formatted}>
@@ -219,6 +224,27 @@ function MessageInlineMeta({ message, content, align, onEdit, onGenerateInteract
         >
           {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
         </TooltipIconButton>
+        {onSpeak && message.role === 'assistant' && content ? (
+          <TooltipIconButton
+            label={ttsSpeakingMessageId === message.id ? t('chat.action.stopSpeaking') : t('chat.action.speak')}
+            {...metaTooltip}
+            className="h-5 w-5 border border-transparent bg-transparent text-[var(--nova-text-faint)] shadow-none hover:border-[var(--nova-border)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text-muted)]"
+            onClick={(event) => {
+              event.stopPropagation()
+              if (!message.id) return
+              if (ttsLoading && ttsSpeakingMessageId === message.id) return
+              onSpeak(message.id, content)
+            }}
+          >
+            {ttsLoading && ttsSpeakingMessageId === message.id ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : ttsSpeakingMessageId === message.id ? (
+              <VolumeX className="h-3 w-3" />
+            ) : (
+              <Volume2 className="h-3 w-3" />
+            )}
+          </TooltipIconButton>
+        ) : null}
         {onGenerateInteractiveImage && (
           <TooltipIconButton
             label={message.interactive_images?.length || message.interactive_image ? t('chat.interactiveImage.regenerate') : t('chat.action.generateInteractiveImage')}
