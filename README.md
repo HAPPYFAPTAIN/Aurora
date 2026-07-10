@@ -21,6 +21,10 @@
   当前版本：<strong>v0.1.19-dev</strong>（2026-07-10） · Beta
 </p>
 
+<p align="center">
+  Fork 自 <a href="https://github.com/alfredxw/denova">alfredxw/denova</a>（原作者 <a href="https://github.com/alfredxw">@alfredxw</a>），基于 Apache-2.0 协议开源
+</p>
+
 ![Aurora 写作模式](./img/ide.png)
 
 <details>
@@ -218,3 +222,5 @@ aurora.example.com {
 ## License
 
 [Apache-2.0](./LICENSE)
+
+本项目 Fork 自 [alfredxw/denova](https://github.com/alfredxw/denova)，感谢原作者 [@alfredxw](https://github.com/alfredxw) 的开源贡献。生命周期钩子与异步记忆系统的设计参考了 [agentscope-ai/QwenPaw](https://github.com/agentscope-ai/QwenPaw)（Apache-2.0）。
