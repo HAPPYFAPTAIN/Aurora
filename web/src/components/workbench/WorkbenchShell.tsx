@@ -527,7 +527,7 @@ export function WorkbenchShell({
 
   const statusBar = (
     <div className="nova-statusbar nova-topbar flex h-6 shrink-0 items-center border-t px-3">
-      <span>Denova v{appVersion}</span>
+      <span>Aurora v{appVersion}</span>
       {mode === 'ide' && summary && (
         <span className="ml-4">{t('workbench.status.summary', { title: summary.title || t('workbench.untitled'), chapters: formatNumber(summary.chapter_count), words: formatNumber(summary.total_words) })}</span>
       )}

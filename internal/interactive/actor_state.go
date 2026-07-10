@@ -396,6 +396,9 @@ func validateActorStatePatch(system StoryDirectorActorStateSystem, patch ActorSt
 	fieldByPath := map[string]ActorStateField{}
 	for _, field := range template.Fields {
 		fieldByPath[field.Path] = field
+		if field.ID != "" && field.ID != field.Path {
+			fieldByPath[field.ID] = field
+		}
 	}
 	if len(patch.State) == 0 {
 		return patch, nil, fmt.Errorf("Actor 状态更新缺少 state")
@@ -421,8 +424,32 @@ func validateActorStatePatch(system StoryDirectorActorStateSystem, patch ActorSt
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
-		field, ok := fieldByPath[strings.TrimSpace(key)]
+		trimmedKey := strings.TrimSpace(key)
+		field, ok := fieldByPath[trimmedKey]
 		if !ok {
+			// LLM 可能返回嵌套对象（如 {"resources": {"hp": 10}}），
+			// 展开为扁平 key（如 "resources.hp"）后重试。
+			nested, isNested := patch.State[key].(map[string]any)
+			if isNested && len(nested) > 0 {
+				nestedKeys := make([]string, 0, len(nested))
+				for nk := range nested {
+					nestedKeys = append(nestedKeys, nk)
+				}
+				sort.Strings(nestedKeys)
+				for _, nk := range nestedKeys {
+					flatKey := trimmedKey + "." + strings.TrimSpace(nk)
+					nestedField, ok2 := fieldByPath[flatKey]
+					if !ok2 {
+						return patch, nil, fmt.Errorf("Actor 状态字段不在模板中: actor=%s template=%s field=%s", patch.ActorID, patch.TemplateID, flatKey)
+					}
+					nestedValue, err := normalizeActorStateValue(nestedField, nested[nk])
+					if err != nil {
+						return patch, nil, err
+					}
+					ops = append(ops, StateOp{Op: "set", Path: actorStateFieldPath(patch.ActorID, nestedField.Path), Value: nestedValue, Reason: reason, SourceTurnID: sourceTurnID})
+				}
+				continue
+			}
 			return patch, nil, fmt.Errorf("Actor 状态字段不在模板中: actor=%s template=%s field=%s", patch.ActorID, patch.TemplateID, key)
 		}
 		value, err := normalizeActorStateValue(field, patch.State[key])
