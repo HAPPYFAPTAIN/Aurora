@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  当前版本：<strong>v0.1.19-dev</strong>（2026-07-10） · Beta
+  当前版本：<strong>v0.1.19</strong>（2026-07-10） · Beta
 </p>
 
 <p align="center">
