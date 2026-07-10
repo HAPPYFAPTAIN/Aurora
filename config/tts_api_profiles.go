@@ -11,9 +11,7 @@ const (
 	DefaultTTSAPIProvider  = "openai"
 	DefaultTTSAPIBaseURL   = "https://api.openai.com/v1"
 	DefaultTTSAPIModel     = "gpt-4o-mini-tts"
-	DefaultTTSVoice        = "alloy"
 	DefaultTTSFormat       = "mp3"
-	DefaultTTSSpeed        = 1.0
 )
 
 var (
@@ -92,9 +90,6 @@ func ResolveTTSAPIProfile(cfg *Config, requestedID string) (ResolvedTTSAPIProfil
 	if profile.OpenAIModel == "" {
 		profile.OpenAIModel = DefaultTTSAPIModel
 	}
-	if profile.DefaultVoice == "" {
-		profile.DefaultVoice = DefaultTTSVoice
-	}
 	if profile.DefaultFormat == "" {
 		profile.DefaultFormat = DefaultTTSFormat
 	}
@@ -114,7 +109,7 @@ func ResolveTTSAPIProfile(cfg *Config, requestedID string) (ResolvedTTSAPIProfil
 		OpenAIAPIKey:  strings.TrimSpace(profile.OpenAIAPIKey),
 		OpenAIBaseURL: strings.TrimSpace(profile.OpenAIBaseURL),
 		OpenAIModel:   strings.TrimSpace(profile.OpenAIModel),
-		Voice:         normalizeTTSVoice(profile.DefaultVoice),
+		Voice:         strings.TrimSpace(profile.DefaultVoice),
 		Format:        normalizeTTSFormat(profile.DefaultFormat),
 		Speed:         normalizeTTSSpeed(profile.DefaultSpeed),
 	}, nil
@@ -216,7 +211,6 @@ func legacyTTSAPIProfile(cfg *Config) TTSAPIProfileSettings {
 		OpenAIAPIKey:  cfg.TTSAPIKey,
 		OpenAIBaseURL: firstNonEmpty(cfg.TTSAPIBaseURL, DefaultTTSAPIBaseURL),
 		OpenAIModel:   firstNonEmpty(cfg.TTSAPIModel, DefaultTTSAPIModel),
-		DefaultVoice:  DefaultTTSVoice,
 		DefaultFormat: DefaultTTSFormat,
 	}
 }
@@ -242,11 +236,7 @@ func normalizeTTSAPIProvider(provider string) string {
 }
 
 func normalizeTTSVoice(voice string) string {
-	trimmed := strings.TrimSpace(voice)
-	if trimmed == "" {
-		return DefaultTTSVoice
-	}
-	return trimmed
+	return strings.TrimSpace(voice)
 }
 
 func normalizeTTSFormat(format string) string {

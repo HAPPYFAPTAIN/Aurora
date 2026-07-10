@@ -36,6 +36,9 @@ func (s *Service) Synthesize(ctx context.Context, cfg *config.Config, request Sy
 	if request.Voice == "" {
 		request.Voice = profile.Voice
 	}
+	if request.Voice == "" {
+		return Result{}, errors.New("语音未配置：请在设置中填写 TTS Profile 的语音名，或调用时指定 voice 参数")
+	}
 	if request.Format == "" {
 		request.Format = profile.Format
 	}

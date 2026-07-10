@@ -11,7 +11,7 @@ import { Markdown } from '@tiptap/markdown'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { Plugin, PluginKey, TextSelection as PmTextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
-import { BookOpen, Check, ChevronDown, ChevronUp, ImagePlus, MessageSquareQuote, Palette, Rows3, Save, Search, Settings, X } from 'lucide-react'
+import { BookOpen, Check, ChevronDown, ChevronUp, ImagePlus, Loader2, MessageSquareQuote, Palette, Rows3, Save, Search, Settings, Volume2, VolumeX, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 
@@ -20,6 +20,7 @@ import type { ChapterSummary } from '@/lib/api'
 import { workspaceAssetURL } from '@/lib/api'
 import { findDialogueHighlightRanges } from '@/lib/dialogue-highlight'
 import { isEditableTarget } from '@/lib/keyboard'
+import { useTTS } from '@/features/tts/useTTS'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { TooltipIconButton } from '@/components/common/tooltip-icon-button'
@@ -204,6 +205,7 @@ export function MarkdownEditor({
   illustrationInsertSignal,
 }: MarkdownEditorProps) {
   const { t } = useTranslation()
+  const tts = useTTS()
   const [saveStatus, setSaveStatus] = useState<SaveStatus | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settings, setSettings] = useState<EditorSettings>(() => loadEditorSettings())
@@ -684,6 +686,23 @@ export function MarkdownEditor({
               <ImagePlus className="h-3.5 w-3.5" />
             </TooltipIconButton>
           )}
+          {content ? (
+            <TooltipIconButton
+              label={tts.speakingMessageId === 'editor' ? t('chat.action.stopSpeaking') : t('editor.speak')}
+              size="icon-xs"
+              className="text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]"
+              disabled={tts.loading && tts.speakingMessageId === 'editor'}
+              onClick={() => tts.speak('editor', content)}
+            >
+              {tts.loading && tts.speakingMessageId === 'editor' ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : tts.speakingMessageId === 'editor' ? (
+                <VolumeX className="h-3.5 w-3.5" />
+              ) : (
+                <Volume2 className="h-3.5 w-3.5" />
+              )}
+            </TooltipIconButton>
+          ) : null}
           <Button
             type="button"
             onClick={handleSave}

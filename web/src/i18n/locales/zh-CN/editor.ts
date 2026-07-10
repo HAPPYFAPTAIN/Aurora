@@ -59,6 +59,7 @@ const editor = {
   'editor.preview.invalidJsonl': '{{count}} 行 JSONL 解析失败，已保留原始行',
   'editor.preview.truncated': '内容较大，仅显示前 {{count}} 个字符',
   'editor.preview.rawLarge': '文件较大，已跳过格式化并显示原始内容',
+  'editor.speak': '朗读文章',
 } as const
 
 export default editor
