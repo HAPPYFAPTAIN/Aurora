@@ -1,0 +1,941 @@
+{
+  "version": 1,
+  "id": "default",
+  "name": "默认故事记忆结构",
+  "description": "面向互动故事长期承接的默认结构定义。运行时记录仍按具体故事和分支保存。",
+  "structures": [
+    {
+      "id": "current_state",
+      "name": "当前状态",
+      "description": "记录当前剧情线的全局时间、地点和场景状态。此表有且仅有一行。",
+      "generation_instruction": "每轮整理必须更新为当前回合结束后的状态；时间和天数必须自洽，不得按现实消息轮次盲目累加。",
+      "mode": "singleton",
+      "fields": [
+        {
+          "id": "story_start_date",
+          "name": "故事开局日期",
+          "description": "当前故事线的剧内开局日期。",
+          "generation_instruction": "格式尽量使用 YYYY-MM-DD；初始化后除非用户明确重置开局时间，否则不要改动。",
+          "required": true,
+          "order": 10
+        },
+        {
+          "id": "location",
+          "name": "当前详细地点",
+          "description": "主角当前所在的具体场景名称。",
+          "generation_instruction": "填写具体场景名，不要只写宽泛区域。",
+          "required": true,
+          "order": 20
+        },
+        {
+          "id": "previous_time",
+          "name": "上轮场景时间",
+          "description": "上一轮交互结束时的剧内时间。",
+          "generation_instruction": "格式尽量与当前时间一致；首轮没有上一轮时填本轮开始前的合理时间。",
+          "required": true,
+          "order": 30
+        },
+        {
+          "id": "elapsed_time",
+          "name": "经过的时间",
+          "description": "当前时间相对上轮场景时间经过了多久。",
+          "generation_instruction": "用自然语言描述时间跨度，例如“几分钟”“半个时辰”“两天”。",
+          "required": true,
+          "order": 40
+        },
+        {
+          "id": "time",
+          "name": "当前时间",
+          "description": "当前回合结束后的剧内时间。",
+          "generation_instruction": "必须填写明确日期和时间；若正文未给出，需根据世界观和场景推进推定。",
+          "required": true,
+          "order": 50
+        },
+        {
+          "id": "current_day",
+          "name": "当前天数",
+          "description": "从故事开局日期开始计算的剧内天数。",
+          "generation_instruction": "开局日期当天为第 1 天；只有剧内日期跨日时才变化。",
+          "required": true,
+          "order": 60
+        },
+        {
+          "id": "event",
+          "name": "当前事件",
+          "description": "当前场景正在承接的核心事件。",
+          "generation_instruction": "一句话写清本轮结束后仍影响下一轮的当前事件，不写下一步选项。",
+          "order": 70
+        }
+      ],
+      "enabled": true,
+      "order": 10,
+      "built_in": true,
+      "read_only": true,
+      "derived": true,
+      "created_at": "2026-07-10T14:27:24.410033Z",
+      "updated_at": "2026-07-10T14:27:24.410033Z"
+    },
+    {
+      "id": "protagonist",
+      "name": "主角信息",
+      "description": "记录主角的核心身份、能力、资源、关系和经历。此表有且仅有一行。",
+      "generation_instruction": "只记录主角长期需要承接的信息；技能、物品和人物关系用纯文本子列表维护，避免拆成过多默认表。",
+      "mode": "singleton",
+      "fields": [
+        {
+          "id": "name",
+          "name": "人物名称",
+          "description": "主角的名字或稳定称呼。",
+          "generation_instruction": "使用剧情中最稳定的称呼。",
+          "required": true,
+          "order": 10
+        },
+        {
+          "id": "gender_age",
+          "name": "性别/年龄",
+          "description": "主角的性别和年龄或年龄阶段。",
+          "generation_instruction": "没有明确年龄时根据设定给出合理阶段或估计年龄。",
+          "order": 20
+        },
+        {
+          "id": "appearance",
+          "name": "外貌特征",
+          "description": "主角相对稳定的外貌特征。",
+          "generation_instruction": "只写客观可观察特征；不要把临时姿态、表情或单轮状态写成外貌。",
+          "order": 30
+        },
+        {
+          "id": "identity",
+          "name": "职业/身份",
+          "description": "主角在社会、组织或世界规则中的主要身份。",
+          "generation_instruction": "填写当前最主要身份，可包含门派、职位、阶层、公开身份或隐藏身份。",
+          "order": 40
+        },
+        {
+          "id": "current_condition",
+          "name": "当前近况",
+          "description": "主角当前身体、情绪或压力状态。",
+          "generation_instruction": "写一口话的具体近况；正常时填“一切如常”。",
+          "order": 50
+        },
+        {
+          "id": "location",
+          "name": "所在地点",
+          "description": "主角当前所在地点。",
+          "generation_instruction": "应与当前状态表的当前详细地点保持一致或更具体。",
+          "order": 60
+        },
+        {
+          "id": "abilities",
+          "name": "基础属性/特有能力",
+          "description": "主角能力、属性、境界或特殊能力。",
+          "generation_instruction": "用分号分隔多项；只记录已经设定或剧情证实的能力，不临场编造。",
+          "order": 70
+        },
+        {
+          "id": "skills",
+          "name": "技能列表",
+          "description": "主角掌握的技能。",
+          "generation_instruction": "按“技能名称｜类型｜等级/阶段｜效果”维护多项；无技能时留空。",
+          "order": 80
+        },
+        {
+          "id": "items",
+          "name": "重要物品/资源",
+          "description": "主角持有的重要物品、装备、资源或线索。",
+          "generation_instruction": "按“名称｜数量/规模｜用途/意义｜状态”维护多项；只记录会影响后续剧情的内容。",
+          "order": 90
+        },
+        {
+          "id": "relationships",
+          "name": "与其他人物关系",
+          "description": "主角与重要角色之间的关系和最近互动。",
+          "generation_instruction": "每行一个人物，格式建议“人物：关系及最近关键互动”；只写已发生或已证实内容。",
+          "order": 100
+        },
+        {
+          "id": "experience",
+          "name": "关键经历",
+          "description": "主角背景故事和剧情推进后的关键经历。",
+          "generation_instruction": "随剧情增量更新，不超过 400 字；超过时压缩，只保留影响后续剧情的事实。",
+          "order": 110
+        }
+      ],
+      "enabled": true,
+      "order": 20,
+      "built_in": true,
+      "created_at": "2026-07-10T14:27:24.410033Z",
+      "updated_at": "2026-07-10T14:27:24.410033Z"
+    },
+    {
+      "id": "important_character",
+      "name": "重要角色",
+      "description": "记录会影响后续剧情的关键角色。",
+      "generation_instruction": "每个关键角色一行；只记录会影响后续剧情承接的人物，不记录临时路人。",
+      "mode": "keyed",
+      "key_field_id": "name",
+      "fields": [
+        {
+          "id": "name",
+          "name": "姓名",
+          "description": "角色姓名或稳定称呼。",
+          "generation_instruction": "使用角色最稳定的正式姓名或常用称呼。",
+          "required": true,
+          "order": 10
+        },
+        {
+          "id": "gender_age",
+          "name": "性别/年龄",
+          "description": "角色性别和年龄或年龄阶段。",
+          "generation_instruction": "没有明确年龄时根据设定给出合理阶段或估计年龄。",
+          "order": 20
+        },
+        {
+          "id": "brief",
+          "name": "一句话介绍",
+          "description": "角色身份背景的一句话概括。",
+          "generation_instruction": "不超过 30 字；只写身份背景，不写好坏强弱等主观评价。",
+          "order": 30
+        },
+        {
+          "id": "appearance",
+          "name": "外貌特征",
+          "description": "角色相对稳定的外貌特征。",
+          "generation_instruction": "只写客观可观察特征；临时衣着、姿态和表情放到当前状态。",
+          "order": 40
+        },
+        {
+          "id": "identity",
+          "name": "身份",
+          "description": "角色职业、阵营、社会身份或剧情身份。",
+          "generation_instruction": "只写已设定或已揭示身份；疑似身份写明待确认。",
+          "order": 50
+        },
+        {
+          "id": "location",
+          "name": "所在地点",
+          "description": "角色当前或最后确认的地点。",
+          "generation_instruction": "不知道时填“未知”；离场后写最后确认地点或去向。",
+          "order": 60
+        },
+        {
+          "id": "current_status",
+          "name": "当前状态",
+          "description": "角色当前行为、处境、伤势、情绪基调或可互动状态。",
+          "generation_instruction": "只写当前可承接状态，不写无依据内心独白。",
+          "order": 70
+        },
+        {
+          "id": "relationship_to_protagonist",
+          "name": "与主角关系",
+          "description": "该角色与主角的关系和最近关键互动。",
+          "generation_instruction": "避免只写“朋友/敌人”等标签，要补一句具体依据。",
+          "order": 80
+        },
+        {
+          "id": "relationships",
+          "name": "与其他重要角色关系",
+          "description": "该角色与其他重要角色的关系网络。",
+          "generation_instruction": "每行一个人物，格式建议“人物：关系及最近互动”；只写已接触或已设定关系。",
+          "order": 90
+        },
+        {
+          "id": "known_about_protagonist",
+          "name": "对主角已知信息",
+          "description": "该角色已经知道的主角相关情报。",
+          "generation_instruction": "上限 5 项，保留最影响后续互动的情报。",
+          "order": 100
+        },
+        {
+          "id": "unknown_about_protagonist",
+          "name": "对主角未知/误解",
+          "description": "该角色仍想探明或误解的主角相关情报。",
+          "generation_instruction": "上限 5 项；没有明确误解或未知点时留空。",
+          "order": 110
+        },
+        {
+          "id": "important_items",
+          "name": "持有关键物品",
+          "description": "角色持有的重要物品、资源或线索。",
+          "generation_instruction": "多项用分号分隔；只记录关键物品。",
+          "order": 120
+        },
+        {
+          "id": "experience",
+          "name": "关键经历",
+          "description": "角色背景与登场后的关键经历。",
+          "generation_instruction": "随剧情增量更新，不超过 350 字；超过时压缩，只保留影响后续剧情的事实。",
+          "order": 130
+        },
+        {
+          "id": "left_scene",
+          "name": "是否离场",
+          "description": "该角色是否已经离开当前可互动场景。",
+          "generation_instruction": "只能填写“是”或“否”。",
+          "order": 140
+        }
+      ],
+      "enabled": true,
+      "order": 30,
+      "built_in": true,
+      "created_at": "2026-07-10T14:27:24.410033Z",
+      "updated_at": "2026-07-10T14:27:24.410033Z"
+    },
+    {
+      "id": "world_context",
+      "name": "世界上下文",
+      "description": "记录地点、势力、组织、阵营、关键场景和世界规则节点。",
+      "generation_instruction": "本表记录外部结构如何影响剧情，不重复记录角色完整档案；普通地点或一次性背景无需记录。",
+      "mode": "keyed",
+      "key_field_id": "name",
+      "fields": [
+        {
+          "id": "name",
+          "name": "节点名称",
+          "description": "地点、势力、组织、规则或关键场景名称。",
+          "generation_instruction": "使用稳定可复用名称。",
+          "required": true,
+          "order": 10
+        },
+        {
+          "id": "type",
+          "name": "节点类型",
+          "description": "节点类别。",
+          "generation_instruction": "可填地点、势力、组织、规则、场景、家族、阵营等。",
+          "required": true,
+          "order": 20
+        },
+        {
+          "id": "scope",
+          "name": "所属范围",
+          "description": "上级区域、所属世界、阵营范围或适用范围。",
+          "generation_instruction": "没有明确范围时填“未知”或留空。",
+          "order": 30
+        },
+        {
+          "id": "description",
+          "name": "描述",
+          "description": "该节点的性质、环境、规则或结构说明。",
+          "generation_instruction": "写对后续剧情有用的事实，不写百科式长篇设定。",
+          "order": 40
+        },
+        {
+          "id": "related_characters",
+          "name": "相关角色",
+          "description": "与该节点有关的重要角色。",
+          "generation_instruction": "多名角色用分号分隔。",
+          "order": 50
+        },
+        {
+          "id": "plot_relation",
+          "name": "与主角/主线关系",
+          "description": "该节点如何影响主角、主线或关键关系。",
+          "generation_instruction": "写推动、阻碍、保护、监视、误导、交易、压迫等具体作用。",
+          "order": 60
+        },
+        {
+          "id": "stance",
+          "name": "当前立场",
+          "description": "节点对主角或当前事件的立场。",
+          "generation_instruction": "没有明确立场时填“未知”。",
+          "order": 70
+        },
+        {
+          "id": "status",
+          "name": "当前状态",
+          "description": "节点当前状态。",
+          "generation_instruction": "记录开放、封锁、覆灭、隐藏、紧张、待调查等状态。",
+          "order": 80
+        }
+      ],
+      "enabled": true,
+      "order": 40,
+      "built_in": true,
+      "created_at": "2026-07-10T14:27:24.410033Z",
+      "updated_at": "2026-07-10T14:27:24.410033Z"
+    },
+    {
+      "id": "open_threads",
+      "name": "进行中事项",
+      "description": "记录任务、备忘录、承诺、伏笔、计划、未解决误会和待办。",
+      "generation_instruction": "只维护仍需后续承接的事项；结束、失效或不再参与判断时归档。",
+      "mode": "keyed",
+      "key_field_id": "title",
+      "fields": [
+        {
+          "id": "title",
+          "name": "标题",
+          "description": "事项的稳定短标题。",
+          "generation_instruction": "用可复用短标题，不要每轮改名。",
+          "required": true,
+          "order": 10
+        },
+        {
+          "id": "type",
+          "name": "事项类型",
+          "description": "任务、备忘、承诺、伏笔、计划、误会、纪念日、调查等。",
+          "generation_instruction": "选择最贴近的一类；不要新增无意义分类。",
+          "required": true,
+          "order": 20
+        },
+        {
+          "id": "related",
+          "name": "相关对象",
+          "description": "相关角色、地点、势力或物品。",
+          "generation_instruction": "多项用分号分隔。",
+          "order": 30
+        },
+        {
+          "id": "detail",
+          "name": "详细内容",
+          "description": "事项来由、关键细节和当前卡点。",
+          "generation_instruction": "写清楚为什么需要后续承接，避免一句话空泛概括。",
+          "order": 40
+        },
+        {
+          "id": "progress",
+          "name": "当前进度/状态",
+          "description": "已完成事项、当前阻碍或当前状态。",
+          "generation_instruction": "简要描述已发生变化；没有进展时沿用旧值。",
+          "order": 50
+        },
+        {
+          "id": "deadline",
+          "name": "时限",
+          "description": "完成、兑现或爆发的时间限制。",
+          "generation_instruction": "没有明确时限时填“暂无明确时限”。",
+          "order": 60
+        },
+        {
+          "id": "stakes",
+          "name": "风险/收益",
+          "description": "事项成功、失败或拖延的后果。",
+          "generation_instruction": "没有明确风险收益时填“暂无明确风险收益”。",
+          "order": 70
+        },
+        {
+          "id": "result",
+          "name": "后续结果",
+          "description": "事项完结或状态变更后的结果。",
+          "generation_instruction": "未完结时留空；完结时写具体结果，不写“已解决”等空泛收束。",
+          "order": 80
+        }
+      ],
+      "enabled": true,
+      "order": 50,
+      "built_in": true,
+      "created_at": "2026-07-10T14:27:24.410033Z",
+      "updated_at": "2026-07-10T14:27:24.410033Z"
+    },
+    {
+      "id": "rule_state_summary",
+      "name": "规则与状态摘要",
+      "description": "记录 TRPG 检定和状态系统需要长期承接的资源、属性、状态和最近检定。此表有且仅有一行。",
+      "generation_instruction": "只记录已经由剧情、工具或规则结算确认的状态；状态变化必须能追溯到最近事件或规则检定，不自行臆造。",
+      "mode": "singleton",
+      "fields": [
+        {
+          "id": "resources",
+          "name": "资源数值",
+          "description": "生命、体力、灵力、金钱、声望等资源状态。",
+          "generation_instruction": "按“资源：当前值/上限｜变化原因”维护；未知上限时写当前状态和来源。",
+          "order": 10
+        },
+        {
+          "id": "attributes",
+          "name": "属性/境界",
+          "description": "力量、敏捷、修为、经营等级等稳定属性。",
+          "generation_instruction": "按“属性：数值或阶段｜来源”维护；只写已确认属性。",
+          "order": 20
+        },
+        {
+          "id": "conditions",
+          "name": "持续状态",
+          "description": "伤势、中毒、疲劳、增益、诅咒、通缉等会跨回合影响行动的状态。",
+          "generation_instruction": "每项写清持续条件、影响和解除方式；过期状态应移除或标记已结束。",
+          "order": 30
+        },
+        {
+          "id": "relationship_scores",
+          "name": "关系值",
+          "description": "好感、信任、敌意、债务等可量化关系。",
+          "generation_instruction": "按“角色/势力：指标=值｜变化原因”维护；没有已确认关系值时可留空。",
+          "order": 40
+        },
+        {
+          "id": "flags",
+          "name": "规则标记",
+          "description": "会影响后续检定或分支的布尔/枚举标记。",
+          "generation_instruction": "按“标记：值｜来源”维护，例如“已暴露身份：否”。",
+          "order": 50
+        },
+        {
+          "id": "last_rule_checks",
+          "name": "最近规则检定",
+          "description": "最近关键规则检定及结果。",
+          "generation_instruction": "记录 3-5 个影响后续叙事的检定，格式建议“回合/检定：成功等级｜代价｜影响”。",
+          "order": 60
+        }
+      ],
+      "enabled": true,
+      "order": 60,
+      "built_in": true,
+      "read_only": true,
+      "derived": true,
+      "created_at": "2026-07-10T14:27:24.410033Z",
+      "updated_at": "2026-07-10T14:27:24.410033Z"
+    },
+    {
+      "id": "relationship_state",
+      "name": "关系状态",
+      "description": "记录普通互动、恋爱、误会、敌意、债务和同盟等可推进关系。",
+      "generation_instruction": "每次整理只更新已经被剧情证实的关系变化；不要替代重要角色表的完整人物档案。",
+      "mode": "keyed",
+      "key_field_id": "name",
+      "fields": [
+        {
+          "id": "name",
+          "name": "姓名/对象",
+          "description": "角色、势力或关系对象名称。",
+          "generation_instruction": "使用重要角色、势力或稳定称呼。",
+          "required": true,
+          "order": 10
+        },
+        {
+          "id": "relationship_type",
+          "name": "关系类型",
+          "description": "同盟、师徒、竞争、恋爱、误会、债务、敌对等。",
+          "generation_instruction": "选择最影响后续互动的一类或两类。",
+          "required": true,
+          "order": 20
+        },
+        {
+          "id": "affection",
+          "name": "好感/亲近",
+          "description": "对象对主角的亲近、好感或抗拒。",
+          "generation_instruction": "可写数值或阶段；必须带最近依据。",
+          "order": 30
+        },
+        {
+          "id": "trust",
+          "name": "信任/戒备",
+          "description": "对象对主角的信任、戒备或怀疑。",
+          "generation_instruction": "写清触发原因和当前风险。",
+          "order": 40
+        },
+        {
+          "id": "tension",
+          "name": "张力/冲突",
+          "description": "暧昧、敌意、竞争、亏欠或压力。",
+          "generation_instruction": "记录会推动下一次互动的张力，不写泛泛情绪。",
+          "order": 50
+        },
+        {
+          "id": "misunderstanding",
+          "name": "误会/秘密",
+          "description": "仍未消解的误会、隐瞒、秘密或错认。",
+          "generation_instruction": "没有时留空；有时写清谁误会了什么。",
+          "order": 60
+        },
+        {
+          "id": "last_interaction",
+          "name": "最近关键互动",
+          "description": "最近一次改变关系状态的互动。",
+          "generation_instruction": "一句话记录事件和结果。",
+          "order": 70
+        },
+        {
+          "id": "next_hook",
+          "name": "后续关系钩子",
+          "description": "下一次关系推进可承接的入口。",
+          "generation_instruction": "只记录已经被当前剧情合理铺垫的入口。",
+          "order": 80
+        }
+      ],
+      "enabled": true,
+      "order": 70,
+      "built_in": true,
+      "created_at": "2026-07-10T14:27:24.410033Z",
+      "updated_at": "2026-07-10T14:27:24.410033Z"
+    },
+    {
+      "id": "foreshadowing_resolved",
+      "name": "伏笔与回收",
+      "description": "记录已埋下、推进中、已回收或已失效的伏笔。",
+      "generation_instruction": "伏笔必须有来源事件、可见线索和回收条件；回收后写具体回收结果，避免只写“已回收”。",
+      "mode": "keyed",
+      "key_field_id": "title",
+      "fields": [
+        {
+          "id": "title",
+          "name": "伏笔标题",
+          "description": "伏笔的稳定短标题。",
+          "generation_instruction": "用可复用短标题，不要每轮改名。",
+          "required": true,
+          "order": 10
+        },
+        {
+          "id": "status",
+          "name": "状态",
+          "description": "seeded、developing、ready、paid_off、void 等状态。",
+          "generation_instruction": "根据剧情事实选择；不确定时保持上一状态。",
+          "required": true,
+          "order": 20
+        },
+        {
+          "id": "seeded_at",
+          "name": "埋设来源",
+          "description": "伏笔首次出现的事件、回合或场景。",
+          "generation_instruction": "写清来源，方便后续回查。",
+          "order": 30
+        },
+        {
+          "id": "clues",
+          "name": "已露线索",
+          "description": "用户或角色已经看见的线索。",
+          "generation_instruction": "列出 1-5 条关键线索；不要加入未揭示真相。",
+          "order": 40
+        },
+        {
+          "id": "payoff_condition",
+          "name": "回收条件",
+          "description": "触发回收需要满足的条件。",
+          "generation_instruction": "写成可判断条件，例如“主角交出残卷且长老在场”。",
+          "order": 50
+        },
+        {
+          "id": "payoff_result",
+          "name": "回收结果",
+          "description": "伏笔回收、反转或失效后的具体结果。",
+          "generation_instruction": "未回收时留空；已回收时写对主线、关系或世界状态的影响。",
+          "order": 60
+        },
+        {
+          "id": "related_events",
+          "name": "关联事件",
+          "description": "相关事件、角色、物品或长期弧线。",
+          "generation_instruction": "多项用分号分隔。",
+          "order": 70
+        }
+      ],
+      "enabled": true,
+      "order": 80,
+      "built_in": true,
+      "created_at": "2026-07-10T14:27:24.410033Z",
+      "updated_at": "2026-07-10T14:27:24.410033Z"
+    },
+    {
+      "id": "long_term_arc_progress",
+      "name": "长期弧线进度",
+      "description": "记录逆袭、复仇、种田、经营、修炼、恋爱等长期情节的目标、阶段、压力和回报。",
+      "generation_instruction": "只维护仍在推进或需要后续承接的长期弧线；阶段变化必须由剧情或规则结果支撑。",
+      "mode": "keyed",
+      "key_field_id": "arc_name",
+      "fields": [
+        {
+          "id": "arc_name",
+          "name": "弧线名称",
+          "description": "长期情节的稳定名称。",
+          "generation_instruction": "例如“青云宗逆袭线”“北境种田线”。",
+          "required": true,
+          "order": 10
+        },
+        {
+          "id": "arc_type",
+          "name": "弧线类型",
+          "description": "逆袭、复仇、种田、经营、修炼、恋爱、学院比拼等。",
+          "generation_instruction": "选择主要类型，可用逗号补充副类型。",
+          "required": true,
+          "order": 20
+        },
+        {
+          "id": "goal",
+          "name": "长期目标",
+          "description": "此弧线当前阶段的长期目标。",
+          "generation_instruction": "写成可推进目标，不写抽象愿望。",
+          "order": 30
+        },
+        {
+          "id": "current_phase",
+          "name": "当前阶段",
+          "description": "铺垫、升级、挫败、反转、收获、收束等阶段。",
+          "generation_instruction": "用一个短语描述当前节奏阶段。",
+          "order": 40
+        },
+        {
+          "id": "pressure",
+          "name": "当前压力/危机",
+          "description": "推进此弧线的外部压力、倒计时或危机。",
+          "generation_instruction": "写清压力来源和失败后果。",
+          "order": 50
+        },
+        {
+          "id": "milestones",
+          "name": "已达成节点",
+          "description": "此弧线已完成的重要节点。",
+          "generation_instruction": "按时间顺序压缩记录，只保留影响后续的节点。",
+          "order": 60
+        },
+        {
+          "id": "setbacks",
+          "name": "失败/代价",
+          "description": "此弧线中已经付出的代价、失败或错失机会。",
+          "generation_instruction": "失败后果要保留，不要下一轮自然消失。",
+          "order": 70
+        },
+        {
+          "id": "next_pressure",
+          "name": "下一压力点",
+          "description": "后续可触发的压力、比拼、危机或收益窗口。",
+          "generation_instruction": "只记录已铺垫且合理的下一压力点。",
+          "order": 80
+        },
+        {
+          "id": "terminal_risk",
+          "name": "终局风险",
+          "description": "可能导致主线失败、死亡或弧线中断的风险。",
+          "generation_instruction": "没有明确风险时留空；有风险时写触发条件。",
+          "order": 90
+        }
+      ],
+      "enabled": true,
+      "order": 90,
+      "built_in": true,
+      "created_at": "2026-07-10T14:27:24.410033Z",
+      "updated_at": "2026-07-10T14:27:24.410033Z"
+    },
+    {
+      "id": "plot_summary",
+      "name": "剧情纪要",
+      "description": "轮次日志，每轮或每批整理追加一条新记录。",
+      "generation_instruction": "纪要以第三人称客观记录正文明确发生的事实，不生成下一步行动选项，不加入推测、情绪化语言或主观判断。",
+      "mode": "append",
+      "fields": [
+        {
+          "id": "code_index",
+          "name": "编码索引",
+          "description": "本条纪要的唯一顺序索引。",
+          "generation_instruction": "格式建议 AM0001 起递增；无法确认时根据已有纪要顺序推定。",
+          "required": true,
+          "order": 10
+        },
+        {
+          "id": "time_span",
+          "name": "时间跨度",
+          "description": "本轮事件发生的精确时间范围。",
+          "generation_instruction": "格式尽量与当前状态表一致。",
+          "required": true,
+          "order": 20
+        },
+        {
+          "id": "place",
+          "name": "地点",
+          "description": "本轮事件发生的地点。",
+          "generation_instruction": "按从大到小的层级描述地点。",
+          "required": true,
+          "order": 30
+        },
+        {
+          "id": "summary",
+          "name": "概览",
+          "description": "30 字以内的一句话概括。",
+          "generation_instruction": "不超过 30 字，客观概括本轮事实。",
+          "order": 40
+        },
+        {
+          "id": "event",
+          "name": "详细纪要",
+          "description": "以第三人称客观记录本轮事件。",
+          "generation_instruction": "必须基于正文明确发生的事实；记录关键因果、对话、移动、物品交互和状态变化；不少于 300 字；结尾禁止总结或升华。",
+          "required": true,
+          "order": 50
+        },
+        {
+          "id": "key_dialogue",
+          "name": "重要对话",
+          "description": "造成事实重点或后续影响的重要原文对话。",
+          "generation_instruction": "摘录 2-4 句并标明说话者；没有关键对话时留空。",
+          "order": 60
+        },
+        {
+          "id": "current_day",
+          "name": "当前天数",
+          "description": "本轮结束时对应的剧内天数。",
+          "generation_instruction": "必须与当前状态表的当前天数一致。",
+          "required": true,
+          "order": 70
+        }
+      ],
+      "enabled": true,
+      "order": 100,
+      "built_in": true,
+      "created_at": "2026-07-10T14:27:24.410033Z",
+      "updated_at": "2026-07-10T14:27:24.410033Z"
+    },
+    {
+      "id": "romance_profile",
+      "name": "恋爱关系档案",
+      "description": "记录恋爱对象或潜在恋爱对象的关系阶段和情感变化。",
+      "generation_instruction": "默认关闭；用户启用后才参与自动整理。只记录已发生或已表现出的关系变化，不替代重要角色表。",
+      "mode": "keyed",
+      "key_field_id": "name",
+      "fields": [
+        {
+          "id": "name",
+          "name": "姓名",
+          "description": "恋爱对象或潜在恋爱对象姓名。",
+          "generation_instruction": "必须对应重要角色表中的角色。",
+          "required": true,
+          "order": 10
+        },
+        {
+          "id": "relationship_stage",
+          "name": "关系阶段",
+          "description": "该角色与主角的关系阶段。",
+          "generation_instruction": "用具体短语描述当前阶段，并写出依据。",
+          "order": 20
+        },
+        {
+          "id": "affection",
+          "name": "好感/亲近度",
+          "description": "该角色对主角的亲近、好感或抗拒状态。",
+          "generation_instruction": "用自然语言描述，不强制数值。",
+          "order": 30
+        },
+        {
+          "id": "trust",
+          "name": "信任度",
+          "description": "该角色对主角的信任状态。",
+          "generation_instruction": "用自然语言描述信任依据和风险。",
+          "order": 40
+        },
+        {
+          "id": "attitude",
+          "name": "当前态度",
+          "description": "该角色当前面对主角的态度。",
+          "generation_instruction": "只基于正文表现和已知设定，不主观脑补。",
+          "order": 50
+        },
+        {
+          "id": "key_experience",
+          "name": "关键经历",
+          "description": "影响关系发展的关键经历。",
+          "generation_instruction": "不超过 300 字；只保留影响后续互动的节点。",
+          "order": 60
+        }
+      ],
+      "enabled": false,
+      "order": 110,
+      "built_in": true,
+      "created_at": "2026-07-10T14:27:24.410033Z",
+      "updated_at": "2026-07-10T14:27:24.410033Z"
+    },
+    {
+      "id": "romance_diary",
+      "name": "恋爱日记",
+      "description": "记录特定角色视角下值得长期保留的情感节点。",
+      "generation_instruction": "默认关闭；只记录明显改变关系、误会、期待、后悔、动摇或无法说出口想法的节点，不记录普通互动流水账。",
+      "mode": "append",
+      "fields": [
+        {
+          "id": "writer",
+          "name": "写作角色",
+          "description": "日记视角角色。",
+          "generation_instruction": "必须是已建档的重要角色或恋爱档案角色。",
+          "required": true,
+          "order": 10
+        },
+        {
+          "id": "related",
+          "name": "关联角色",
+          "description": "该情感节点关联的角色。",
+          "generation_instruction": "通常为主角，也可包含关键第三人。",
+          "order": 20
+        },
+        {
+          "id": "content",
+          "name": "日记内容",
+          "description": "该角色视角下的情感节点。",
+          "generation_instruction": "100-200 字；聚焦内心变化、误解、期待、动摇或确认。",
+          "required": true,
+          "order": 30
+        },
+        {
+          "id": "time",
+          "name": "发生时间",
+          "description": "该节点发生的剧内时间。",
+          "generation_instruction": "尽量与当前状态表时间一致。",
+          "order": 40
+        },
+        {
+          "id": "event_type",
+          "name": "事件类型",
+          "description": "情感节点类型。",
+          "generation_instruction": "可填初次相遇、日常互动、感情升温、冲突矛盾、和解修复、亲密接触等。",
+          "order": 50
+        },
+        {
+          "id": "impact",
+          "name": "影响判断",
+          "description": "该节点对后续关系的影响。",
+          "generation_instruction": "写具体影响，不写空泛总结。",
+          "order": 60
+        }
+      ],
+      "enabled": false,
+      "order": 120,
+      "built_in": true,
+      "created_at": "2026-07-10T14:27:24.410033Z",
+      "updated_at": "2026-07-10T14:27:24.410033Z"
+    },
+    {
+      "id": "mature_relationship_profile",
+      "name": "成人向关系档案",
+      "description": "记录用户主动启用后的成人向关系扩展信息。",
+      "generation_instruction": "默认关闭；作为可配置扩展结构存在，不照搬外部模板的私有字段。启用后只记录用户作品设定中明确允许且后续需要承接的内容。",
+      "mode": "keyed",
+      "key_field_id": "name",
+      "fields": [
+        {
+          "id": "name",
+          "name": "姓名",
+          "description": "角色姓名。",
+          "generation_instruction": "必须对应重要角色表中的角色。",
+          "required": true,
+          "order": 10
+        },
+        {
+          "id": "boundary",
+          "name": "边界与偏好",
+          "description": "角色在成人向互动中的边界、偏好或禁忌。",
+          "generation_instruction": "只记录已设定或已明确表达的内容。",
+          "order": 20
+        },
+        {
+          "id": "relationship_context",
+          "name": "关系语境",
+          "description": "成人向内容与主角关系、权力结构或剧情状态的关联。",
+          "generation_instruction": "必须服务后续剧情承接，不写一次性场景细节。",
+          "order": 30
+        },
+        {
+          "id": "continuity_notes",
+          "name": "连续性备注",
+          "description": "需要长期保持一致的成人向连续性信息。",
+          "generation_instruction": "压缩记录，避免露骨流水账。",
+          "order": 40
+        }
+      ],
+      "enabled": false,
+      "order": 130,
+      "built_in": true,
+      "created_at": "2026-07-10T14:27:24.410033Z",
+      "updated_at": "2026-07-10T14:27:24.410033Z"
+    }
+  ],
+  "tags": [
+    "内置",
+    "记忆"
+  ],
+  "custom": false
+}

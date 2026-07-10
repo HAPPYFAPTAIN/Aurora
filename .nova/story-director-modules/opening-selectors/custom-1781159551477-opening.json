@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "id": "custom-1781159551477-opening",
+  "name": "松永恒信叙事 故事导演 开局选择器",
+  "description": "由旧故事导演内嵌 opening_selector 迁移生成。",
+  "opening_selector": {
+    "enabled": true
+  },
+  "tags": [
+    "内置",
+    "导演",
+    "迁移"
+  ],
+  "custom": false,
+  "created_at": "2026-07-10T14:27:27.2063332Z",
+  "updated_at": "2026-07-10T14:27:27.2063332Z"
+}

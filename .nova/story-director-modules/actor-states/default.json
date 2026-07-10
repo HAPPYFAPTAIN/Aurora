@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "id": "default",
+  "name": "默认状态系统",
+  "description": "以主角等关键 Actor 为中心维护结构化状态，供规则检定、资源消耗和长期承接读取。",
+  "actor_state": {
+    "templates": [
+      {
+        "id": "protagonist",
+        "name": "主角",
+        "description": "主角可计算状态模板，用于规则检定、资源消耗和长期承接。",
+        "fields": [
+          {
+            "id": "hp",
+            "path": "resources.hp",
+            "name": "生命",
+            "type": "number",
+            "default": 10,
+            "min": 0,
+            "max": 10,
+            "visibility": "visible",
+            "description": "主角当前生命或伤势承受能力。",
+            "order": 10
+          },
+          {
+            "id": "stamina",
+            "path": "resources.stamina",
+            "name": "体力",
+            "type": "number",
+            "default": 5,
+            "min": 0,
+            "max": 5,
+            "visibility": "visible",
+            "description": "奔跑、战斗、潜入等高消耗行动的资源。",
+            "order": 20
+          },
+          {
+            "id": "affection",
+            "path": "relations.affection",
+            "name": "好感",
+            "type": "number",
+            "default": 0,
+            "min": -100,
+            "max": 100,
+            "visibility": "spoiler",
+            "description": "重要角色或势力对主角的亲近度，可按对象拆分。",
+            "order": 30
+          }
+        ]
+      }
+    ],
+    "initial_actors": [
+      {
+        "id": "protagonist",
+        "name": "主角",
+        "template_id": "protagonist",
+        "role": "protagonist"
+      }
+    ]
+  },
+  "tags": [
+    "内置",
+    "状态"
+  ],
+  "custom": false
+}

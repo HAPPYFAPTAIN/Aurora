@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "default",
+  "name": "默认开局选择器",
+  "description": "提供可跳过的开局词条和初始状态变更入口。",
+  "opening_selector": {
+    "enabled": true
+  },
+  "tags": [
+    "内置",
+    "开局"
+  ],
+  "custom": false
+}
