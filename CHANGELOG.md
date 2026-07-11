@@ -211,6 +211,60 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - WebUI：补充历史 `/sw.js` 清理脚本，旧浏览器 Service Worker 注册会自动注销，避免 Windows 上反复出现 Hertz 找不到 `web/sw.js` 的错误日志。
 - WebUI: Added a cleanup script for historical `/sw.js` service-worker registrations, so stale browser state unregisters itself and no longer triggers repeated Hertz missing-file logs on Windows.
 
+## [v0.1.19] - 2026-07-11
+
+### Brief / 简要说明
+
+中文：本版本新增 TTS 语音朗读系统（支持 OpenAI 兼容 TTS 和阶跃星辰 Step Fun TTS），实现长文本自动分段合成、SSE 流式边生成边播放、音色列表自动获取、语音风格指令、编辑器朗读按钮。同时完成仓库整理和文档更新。
+
+English: This release adds a TTS voice synthesis system (supporting OpenAI-compatible TTS and Step Fun TTS), with automatic long-text chunking, SSE streaming playback, voice list auto-fetch, voice style instructions, and an editor read-aloud button. Also includes repository cleanup and documentation updates.
+
+### Added
+
+- TTS：新增 TTS 语音朗读系统，支持 OpenAI 兼容 TTS 和阶跃星辰 Step Fun TTS（stepaudio-2.5-tts 模型）。
+- TTS: Added TTS voice synthesis system supporting OpenAI-compatible TTS and Step Fun TTS (stepaudio-2.5-tts model).
+- TTS：新增音色列表 API（`GET /api/tts/voices`），Step Fun 32 个音色 + OpenAI 10 个音色，前端下拉框自动获取。
+- TTS: Added voice list API (`GET /api/tts/voices`) with 32 Step Fun voices and 10 OpenAI voices, auto-fetched in frontend dropdown.
+- TTS：新增 SSE 流式合成端点（`POST /api/tts/stream`），逐段合成后立即推送，前端边收边播，无需等待全部合成完成。
+- TTS: Added SSE streaming synthesis endpoint (`POST /api/tts/stream`), pushing each chunk as it's synthesized for real-time playback.
+- TTS：新增长文本自动分段合成，按自然段落/句子分割（每段 ≤ 900 字符），分段合成后合并音频，适配 Step Fun 1000 字符限制。
+- TTS: Added automatic long-text chunking, splitting by paragraphs/sentences (≤ 900 chars per chunk), merging audio after chunked synthesis.
+- TTS：新增语音风格指令（instruction）字段，支持全局情绪基调控制（如"语气温柔，语速偏慢"）。
+- TTS: Added voice style instruction field for global emotion/tone control (e.g. "gentle tone, slower pace").
+- TTS：编辑器工具栏新增朗读按钮（Volume2 图标），可朗读编辑器中的完整文章内容。
+- TTS: Added read-aloud button in editor toolbar (Volume2 icon) for reading full article content.
+- TTS：TTSAPIProfilesEditor 新增 Provider 下拉选择（OpenAI 兼容 / 阶跃星辰 Step Fun），选择 Step Fun 时显示 Instruction 输入框和 Step Fun 默认值提示。
+- TTS: TTSAPIProfilesEditor now has Provider dropdown (OpenAI compatible / Step Fun), showing Instruction field and Step Fun defaults when selected.
+- TTS：VoiceCombobox 组件，支持下拉选择 + 自由输入音色名，按 Provider 自动获取音色列表。
+- TTS: VoiceCombobox component with dropdown selection + free input, auto-fetching voices by provider.
+- TTS：前端出错时 alert 弹窗提示用户，解析 API 返回的 JSON 错误信息，不再静默失败。
+- TTS: Frontend now shows alert on TTS errors, parsing API JSON error messages instead of failing silently.
+
+### Changed
+
+- TTS：移除硬编码默认语音（alloy），改为用户接入 API 后自行填写语音名。
+- TTS: Removed hardcoded default voice (alloy); users now enter voice name after connecting API.
+- TTS：TTSAPIProfileSettings 新增 Instruction 字段（toml/json），支持语音风格指令。
+- TTS: TTSAPIProfileSettings now includes Instruction field (toml/json) for voice style instructions.
+- 仓库：所有 GitHub 链接从 `HAPPYFAPTAIN/Aurora` 更新为 `HAPPYFAPTAIN/Denova-Modified-Version-Aurora`。
+- Repo: Updated all GitHub links from `HAPPYFAPTAIN/Aurora` to `HAPPYFAPTAIN/Denova-Modified-Version-Aurora`.
+- 文档：README（中/英）新增 TTS 语音朗读功能说明和配置指南，更新版本日期至 2026-07-11。
+- Docs: README (CN/EN) now includes TTS feature description and configuration guide, updated version date to 2026-07-11.
+
+### Removed
+
+- 仓库：删除 `.trae/` IDE spec 文件（6 个）、`denova-updater.exe`（独立更新器二进制）、3 个旧版前端 assets 文件。
+- Repo: Removed `.trae/` IDE spec files (6 files), `denova-updater.exe`, and 3 stale frontend asset files.
+
+### Fixed
+
+- TTS：修复 Step Fun 非流式接口使用 `voice_id` 而非 `voice` 字段导致的 400 错误。经实际测试发现非流式 `/audio/speech` 接口使用 `voice` 字段（与 OpenAI 一致），`voice_id` 仅用于 WebSocket 流式接口。
+- TTS: Fixed Step Fun non-streaming API using `voice_id` instead of `voice` field causing 400 error. The non-streaming `/audio/speech` endpoint uses `voice` (same as OpenAI); `voice_id` is only for WebSocket streaming.
+- TTS：修复长文本（>1000 字符）超出 Step Fun 单次输入限制导致的 400 错误，改为自动分段合成。
+- TTS: Fixed long text (>1000 chars) exceeding Step Fun per-request limit causing 400 error, now auto-chunked.
+- TTS：修复前端 TTS 出错时无任何提示的问题，改为 alert 弹窗提示。
+- TTS: Fixed frontend not showing any error on TTS failure, now shows alert.
+
 ## [v0.1.18] - 2026-07-01
 
 ### Brief / 简要说明
