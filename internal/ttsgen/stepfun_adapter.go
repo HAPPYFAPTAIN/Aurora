@@ -25,7 +25,7 @@ func NewStepFunAdapter(httpClient *http.Client) *StepFunAdapter {
 type stepfunTTSRequest struct {
 	Model          string  `json:"model"`
 	Input          string  `json:"input"`
-	VoiceID        string  `json:"voice_id"`
+	Voice          string  `json:"voice"`
 	ResponseFormat string  `json:"response_format,omitempty"`
 	SpeedRatio     float64 `json:"speed_ratio,omitempty"`
 	VolumeRatio    float64 `json:"volume_ratio,omitempty"`
@@ -51,7 +51,7 @@ func (a *StepFunAdapter) Synthesize(ctx context.Context, profile config.Resolved
 	ttsReq := stepfunTTSRequest{
 		Model:          profile.OpenAIModel,
 		Input:          request.Text,
-		VoiceID:        request.Voice,
+		Voice:          request.Voice,
 		ResponseFormat: request.Format,
 		SpeedRatio:     speedRatio,
 		VolumeRatio:    1.0,
