@@ -12,6 +12,7 @@ import (
 	"denova/internal/agent"
 	"denova/internal/book"
 	"denova/internal/interactive"
+	"denova/internal/materialindex"
 	"denova/internal/session"
 )
 
@@ -44,9 +45,11 @@ type App struct {
 	configApp      *ConfigManagerAppService
 	automationApp  *AutomationAppService
 	skillsApp      *SkillsAppService
-	imageApp       *ImageAppService
-	ttsApp         *TTSAppService
-	servicesOnce   sync.Once
+	imageApp         *ImageAppService
+	ttsApp           *TTSAppService
+	diagramApp       *DiagramAppService
+	materialIndexApp *MaterialIndexAppService
+	servicesOnce     sync.Once
 
 	mu sync.RWMutex
 }
@@ -103,6 +106,8 @@ func (a *App) ensureServices() {
 		a.skillsApp = &SkillsAppService{app: a}
 		a.imageApp = &ImageAppService{app: a}
 		a.ttsApp = &TTSAppService{app: a}
+		a.diagramApp = &DiagramAppService{app: a}
+		a.materialIndexApp = &MaterialIndexAppService{app: a, idx: materialindex.NewIndex()}
 	})
 }
 
@@ -134,6 +139,11 @@ func (a *App) images() *ImageAppService {
 func (a *App) tts() *TTSAppService {
 	a.ensureServices()
 	return a.ttsApp
+}
+
+func (a *App) diagrams() *DiagramAppService {
+	a.ensureServices()
+	return a.diagramApp
 }
 
 func (a *App) configManager() *ConfigManagerAppService {

@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 资料卡片索引系统集成到主程序：n-gram 全文搜索、AI 卡片生成、文本导入、工作区搜索等全部功能内置为 `/api/material-index/*` API，不再需要独立搜索服务。
+- Material index system integrated into the main binary: n-gram full-text search, AI card generation, text import, and workspace search are now built-in under `/api/material-index/*` APIs, eliminating the standalone search server.
+- 新增 `internal/materialindex` 包，提供并发安全的 n-gram 索引和评分搜索。
+- Added `internal/materialindex` package with concurrent-safe n-gram indexing and scored search.
+
+### Changed
+
+- 构建脚本 (`build.sh`) 添加 `-trimpath -ldflags "-s -w"` 优化标志，二进制体积从 ~70MB 降至 ~48MB（减少约 30%）。
+- Build script (`build.sh`) now uses `-trimpath -ldflags "-s -w"` optimization flags, reducing binary size from ~70MB to ~48MB (~30% reduction).
+
 - GitHub：新增 Bug Report、Feature Request 和 Question 的 Issue Forms，并关闭普通空白 issue 入口以提升反馈信息完整度。
 - GitHub: Added Issue Forms for Bug Report, Feature Request, and Question, and disabled the regular blank issue entry to improve report completeness.
 - GitHub：新增轻量 PR Title 检查，要求 PR 标题使用英文/ASCII 字符并至少包含一个英文字母。
