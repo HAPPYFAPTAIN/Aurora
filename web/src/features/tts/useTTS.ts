@@ -59,10 +59,21 @@ export function useTTS() {
       }
       await audio.play()
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
+      let msg = err instanceof Error ? err.message : String(err)
+      // 提取 API 返回的错误信息
+      try {
+        const jsonMsg = JSON.parse(msg)
+        if (jsonMsg.error?.message) {
+          msg = jsonMsg.error.message
+        }
+      } catch {
+        // not JSON, use raw message
+      }
       audioRef.current = null
       currentMessageIdRef.current = null
       setState({ speaking: false, loading: false, error: msg, speakingMessageId: null })
+      // 用 alert 确保用户看到错误
+      alert(`朗读失败：${msg}`)
     }
   }, [stop])
 
