@@ -31,6 +31,16 @@ func (a *App) SynthesizeRawTTS(ctx context.Context, request ttsgen.SynthesizeReq
 	return a.tts().SynthesizeRaw(ctx, request)
 }
 
+// ResolveTTSProfile 解析当前运行配置下的 TTS Profile，供音色列表等场景使用。
+func (a *App) ResolveTTSProfile(profileID string) (config.ResolvedTTSAPIProfile, error) {
+	return a.tts().ResolveProfile(profileID)
+}
+
+// SynthesizeTTSStream 逐段流式合成 TTS，每完成一段通过 onChunk 回调推送结果。
+func (a *App) SynthesizeTTSStream(ctx context.Context, request ttsgen.SynthesizeRequest, onChunk func(ttsgen.ChunkResult) error) error {
+	return a.tts().SynthesizeStream(ctx, request, onChunk)
+}
+
 func (s *TTSAppService) Synthesize(ctx context.Context, request ttsgen.SynthesizeRequest) (TTSSynthesizeResult, error) {
 	cfg, err := s.runtimeSnapshot()
 	if err != nil {
@@ -58,6 +68,24 @@ func (s *TTSAppService) SynthesizeRaw(ctx context.Context, request ttsgen.Synthe
 		return ttsgen.Result{}, err
 	}
 	return ttsgen.NewService().Synthesize(ctx, &cfg, request)
+}
+
+// ResolveProfile 解析当前运行配置下的 TTS Profile。
+func (s *TTSAppService) ResolveProfile(profileID string) (config.ResolvedTTSAPIProfile, error) {
+	cfg, err := s.runtimeSnapshot()
+	if err != nil {
+		return config.ResolvedTTSAPIProfile{}, err
+	}
+	return config.ResolveTTSAPIProfile(&cfg, profileID)
+}
+
+// SynthesizeStream 逐段流式合成 TTS，每完成一段通过 onChunk 回调推送结果。
+func (s *TTSAppService) SynthesizeStream(ctx context.Context, request ttsgen.SynthesizeRequest, onChunk func(ttsgen.ChunkResult) error) error {
+	cfg, err := s.runtimeSnapshot()
+	if err != nil {
+		return err
+	}
+	return ttsgen.NewService().SynthesizeStream(ctx, &cfg, request, onChunk)
 }
 
 func (s *TTSAppService) runtimeSnapshot() (config.Config, error) {

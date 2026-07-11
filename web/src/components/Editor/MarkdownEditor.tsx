@@ -692,7 +692,7 @@ export function MarkdownEditor({
               size="icon-xs"
               className="text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]"
               disabled={tts.loading && tts.speakingMessageId === 'editor'}
-              onClick={() => tts.speak('editor', content)}
+              onClick={() => tts.speakStream('editor', content)}
             >
               {tts.loading && tts.speakingMessageId === 'editor' ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />

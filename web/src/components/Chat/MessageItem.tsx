@@ -116,7 +116,7 @@ export const MessageItem = memo(function MessageItem({ message, highlightDialogu
                 versionCount={versionCount}
                 ttsSpeakingMessageId={tts.speakingMessageId}
                 ttsLoading={tts.loading}
-                onSpeak={!message.streaming ? tts.speak : undefined}
+                onSpeak={!message.streaming ? tts.speakStream : undefined}
               />
             </div>
           </div>

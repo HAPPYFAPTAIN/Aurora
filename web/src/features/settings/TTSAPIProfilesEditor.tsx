@@ -1,8 +1,11 @@
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Trash2 } from 'lucide-react'
+import { Check, ChevronDown, Loader2, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { fetchTTSVoices, type TTSVoice } from '@/lib/api-client'
 import type { TTSAPIProfileSettings } from './types'
 
 const INHERIT_VALUE = '__inherit__'
@@ -11,6 +14,110 @@ const TTS_PROVIDERS = [
   { value: 'openai', label: 'OpenAI 兼容' },
   { value: 'stepfun', label: '阶跃星辰 Step Fun' },
 ]
+
+interface VoiceComboboxProps {
+  value: string
+  profileID: string | undefined
+  provider: string
+  placeholder: string
+  onChange: (value: string) => void
+}
+
+/**
+ * VoiceCombobox 是音色选择 combobox：可从下拉列表选择，也可手动输入。
+ * 列表通过 GET /api/tts/voices?profile_id=xxx 拉取，失败时仅展示输入框。
+ */
+function VoiceCombobox({ value, profileID, provider, placeholder, onChange }: VoiceComboboxProps) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const [voices, setVoices] = useState<TTSVoice[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    if (!profileID) return
+    let cancelled = false
+    setLoading(true)
+    setError(false)
+    fetchTTSVoices(profileID)
+      .then((res) => {
+        if (cancelled) return
+        setVoices(res.voices || [])
+      })
+      .catch(() => {
+        if (cancelled) return
+        setVoices([])
+        setError(true)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [profileID, provider])
+
+  return (
+    <div className="relative flex items-center">
+      <Input
+        className="h-7 flex-1 pr-7 text-xs"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute right-0 h-7 w-7 shrink-0 text-[var(--nova-text-faint)]"
+            aria-label={t('settings.ttsApi.voiceSelectHint')}
+          >
+            {loading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <ChevronDown className="h-3 w-3" />
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          sideOffset={4}
+          className="w-[var(--radix-popover-trigger-width)] max-h-[min(50dvh,20rem)] overflow-y-auto rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)] p-1 text-[var(--nova-text)] shadow-[var(--nova-shadow)]"
+        >
+          {loading ? (
+            <div className="px-2 py-2 text-xs text-[var(--nova-text-faint)]">{t('settings.ttsApi.voiceLoading')}</div>
+          ) : error ? (
+            <div className="px-2 py-2 text-xs text-[var(--nova-text-faint)]">{t('settings.ttsApi.voiceFetchError')}</div>
+          ) : voices.length === 0 ? (
+            <div className="px-2 py-2 text-xs text-[var(--nova-text-faint)]">{t('settings.ttsApi.voiceEmpty')}</div>
+          ) : (
+            <div role="listbox" className="space-y-0.5">
+              {voices.map((voice) => {
+                const selected = voice.id === value
+                return (
+                  <button
+                    key={voice.id}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    className={`flex w-full items-center gap-2 rounded-[var(--nova-radius)] px-2 py-1 text-left text-xs ${selected ? 'bg-[var(--nova-active)] text-[var(--nova-text)]' : 'text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]'}`}
+                    onClick={() => {
+                      onChange(voice.id)
+                      setOpen(false)
+                    }}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{voice.name}</span>
+                    {selected ? <Check className="h-3 w-3 shrink-0 text-[var(--nova-text-faint)]" /> : null}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
+}
 
 interface Props {
   profiles: TTSAPIProfileSettings[]
@@ -131,11 +238,12 @@ export function TTSAPIProfilesEditor({ profiles, effectiveProfiles, defaultProfi
               </div>
               <div>
                 <label className="mb-1 block text-[10px] text-[var(--nova-text-faint)]">{t('settings.ttsApi.voice')}</label>
-                <Input
-                  className="h-7 text-xs"
-                  placeholder={isStepFun ? t('settings.ttsApi.voiceStepFunHint') : t('settings.ttsApi.voicePlaceholder')}
+                <VoiceCombobox
                   value={profile.default_voice || ''}
-                  onChange={(e) => updateProfile(index, 'default_voice', e.target.value)}
+                  profileID={profile.id}
+                  provider={profile.provider || 'openai'}
+                  placeholder={isStepFun ? t('settings.ttsApi.voiceStepFunHint') : t('settings.ttsApi.voicePlaceholder')}
+                  onChange={(v) => updateProfile(index, 'default_voice', v)}
                 />
               </div>
               <div>

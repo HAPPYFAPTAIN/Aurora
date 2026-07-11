@@ -76,6 +76,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Game Mode: Added standalone Story Director resources, `/api/story-directors` CRUD, Config Manager Agent tools, and a settings editor. Story Directors now own strategy, event packages, stat systems, TRPG checks, and opening selectors.
 - 游戏模式：新增可独立配置的事件包、数值&TRPG系统、开局选择器模块资源，提供 `/api/event-packages`、`/api/rule-systems`、`/api/opening-selectors` CRUD，并在方案预设页形成“模块库 + 故事导演组合器”。
 - Game Mode: Added independently configurable Event Package, Rule/TRPG System, and Opening Selector module resources with `/api/event-packages`, `/api/rule-systems`, and `/api/opening-selectors` CRUD, surfaced in Presets as a module library plus Story Director composer.
+- TTS：前端新增 `fetchTTSVoices` 和 `streamTTSSynthesize` API 客户端函数，分别调用 `GET /api/tts/voices` 拉取音色列表和 `POST /api/tts/stream` 进行 SSE 流式语音合成；`useTTS` hook 新增 `speakStream` 方法，收到首个音频块即开始播放、后续块排队连续播放，loading 持续到接收完毕、speaking 持续到播放完毕。
+- TTS: Added `fetchTTSVoices` and `streamTTSSynthesize` API client functions calling `GET /api/tts/voices` and `POST /api/tts/stream` respectively. The `useTTS` hook now exposes a `speakStream` method that starts playback on the first audio chunk, queues subsequent chunks for gapless playback, and keeps loading until all chunks arrive and speaking until playback finishes.
+- TTS：TTS Profile 编辑器的音色字段升级为 combobox（下拉选择 + 自由输入），根据当前 profile 的 provider 和凭据从后端拉取可用音色列表，同时保留手动输入能力。
+- TTS: The TTS Profile editor voice field is now a combobox (dropdown selection plus free input). It fetches available voices from the backend based on the current profile's provider and credentials while preserving manual text entry.
 
 ### Changed
 

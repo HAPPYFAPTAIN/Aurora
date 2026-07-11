@@ -117,6 +117,8 @@ func (s *Server) registerRoutes(h *hertzserver.Hertz) {
 		api.POST("/chat/abort", apiHandlers.HandleChatAbort)
 		api.POST("/images/generate", apiHandlers.HandleImageGenerate)
 		api.POST("/tts/synthesize", apiHandlers.HandleTTSSynthesize)
+		api.GET("/tts/voices", apiHandlers.HandleTTSVoices)
+		api.POST("/tts/stream", apiHandlers.HandleTTSStreamSynthesize)
 		api.GET("/story-directors", apiHandlers.HandleStoryDirectors)
 		api.POST("/story-directors", apiHandlers.HandleStoryDirectorCreate)
 		api.GET("/story-directors/:id", apiHandlers.HandleStoryDirector)
