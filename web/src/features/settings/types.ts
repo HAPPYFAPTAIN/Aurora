@@ -97,6 +97,7 @@ export interface TTSAPIProfileSettings {
   default_voice?: string
   default_format?: string
   default_speed?: string
+  instruction?: string
 }
 
 export interface AgentModelSettings {

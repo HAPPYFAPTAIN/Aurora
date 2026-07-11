@@ -22,6 +22,7 @@ type Service struct {
 func NewService() *Service {
 	return &Service{adapters: map[string]Adapter{
 		config.DefaultTTSAPIProvider: NewOpenAIAdapter(nil),
+		config.TTSProviderStepFun:    NewStepFunAdapter(nil),
 	}}
 }
 

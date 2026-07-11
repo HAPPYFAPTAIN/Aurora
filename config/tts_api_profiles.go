@@ -12,6 +12,10 @@ const (
 	DefaultTTSAPIBaseURL   = "https://api.openai.com/v1"
 	DefaultTTSAPIModel     = "gpt-4o-mini-tts"
 	DefaultTTSFormat       = "mp3"
+
+	TTSProviderStepFun    = "stepfun"
+	StepFunDefaultBaseURL = "https://api.stepfun.com/step_plan/v1"
+	StepFunDefaultModel   = "stepaudio-2.5-tts"
 )
 
 var (
@@ -27,9 +31,10 @@ type TTSAPIProfileSettings struct {
 	OpenAIAPIKey  string `toml:"openai_api_key,omitempty" json:"openai_api_key,omitempty"`
 	OpenAIBaseURL string `toml:"openai_base_url,omitempty" json:"openai_base_url,omitempty"`
 	OpenAIModel   string `toml:"openai_model,omitempty" json:"openai_model,omitempty"`
-	DefaultVoice  string `toml:"default_voice,omitempty" json:"default_voice,omitempty"`
-	DefaultFormat string `toml:"default_format,omitempty" json:"default_format,omitempty"`
-	DefaultSpeed  string `toml:"default_speed,omitempty" json:"default_speed,omitempty"`
+	DefaultVoice     string `toml:"default_voice,omitempty" json:"default_voice,omitempty"`
+	DefaultFormat    string `toml:"default_format,omitempty" json:"default_format,omitempty"`
+	DefaultSpeed     string `toml:"default_speed,omitempty" json:"default_speed,omitempty"`
+	Instruction      string `toml:"instruction,omitempty" json:"instruction,omitempty"`
 }
 
 type ResolvedTTSAPIProfile struct {
@@ -42,6 +47,7 @@ type ResolvedTTSAPIProfile struct {
 	Voice         string
 	Format        string
 	Speed         string
+	Instruction   string
 }
 
 func ResolveTTSAPIProfile(cfg *Config, requestedID string) (ResolvedTTSAPIProfile, error) {
@@ -82,13 +88,21 @@ func ResolveTTSAPIProfile(cfg *Config, requestedID string) (ResolvedTTSAPIProfil
 		profile.OpenAIBaseURL = cfg.TTSAPIBaseURL
 	}
 	if profile.OpenAIBaseURL == "" {
-		profile.OpenAIBaseURL = DefaultTTSAPIBaseURL
+		if strings.EqualFold(profile.Provider, TTSProviderStepFun) {
+			profile.OpenAIBaseURL = StepFunDefaultBaseURL
+		} else {
+			profile.OpenAIBaseURL = DefaultTTSAPIBaseURL
+		}
 	}
 	if profile.OpenAIModel == "" {
 		profile.OpenAIModel = cfg.TTSAPIModel
 	}
 	if profile.OpenAIModel == "" {
-		profile.OpenAIModel = DefaultTTSAPIModel
+		if strings.EqualFold(profile.Provider, TTSProviderStepFun) {
+			profile.OpenAIModel = StepFunDefaultModel
+		} else {
+			profile.OpenAIModel = DefaultTTSAPIModel
+		}
 	}
 	if profile.DefaultFormat == "" {
 		profile.DefaultFormat = DefaultTTSFormat
@@ -96,10 +110,10 @@ func ResolveTTSAPIProfile(cfg *Config, requestedID string) (ResolvedTTSAPIProfil
 	if profile.DefaultSpeed == "" {
 		profile.DefaultSpeed = ""
 	}
-	if strings.EqualFold(profile.Provider, DefaultTTSAPIProvider) && strings.TrimSpace(profile.OpenAIAPIKey) == "" {
+	if strings.TrimSpace(profile.OpenAIAPIKey) == "" {
 		return ResolvedTTSAPIProfile{}, ErrTTSAPIKeyMissing
 	}
-	if strings.EqualFold(profile.Provider, DefaultTTSAPIProvider) && strings.TrimSpace(profile.OpenAIModel) == "" {
+	if strings.TrimSpace(profile.OpenAIModel) == "" {
 		return ResolvedTTSAPIProfile{}, ErrTTSModelMissing
 	}
 	return ResolvedTTSAPIProfile{
@@ -112,6 +126,7 @@ func ResolveTTSAPIProfile(cfg *Config, requestedID string) (ResolvedTTSAPIProfil
 		Voice:         strings.TrimSpace(profile.DefaultVoice),
 		Format:        normalizeTTSFormat(profile.DefaultFormat),
 		Speed:         normalizeTTSSpeed(profile.DefaultSpeed),
+		Instruction:   strings.TrimSpace(profile.Instruction),
 	}, nil
 }
 
@@ -166,6 +181,7 @@ func sanitizeTTSAPIProfiles(profiles []TTSAPIProfileSettings) []TTSAPIProfileSet
 		profile.DefaultVoice = normalizeTTSVoice(profile.DefaultVoice)
 		profile.DefaultFormat = normalizeTTSFormat(profile.DefaultFormat)
 		profile.DefaultSpeed = normalizeTTSSpeed(profile.DefaultSpeed)
+		profile.Instruction = strings.TrimSpace(profile.Instruction)
 		out = append(out, profile)
 	}
 	return out
@@ -200,6 +216,9 @@ func mergeTTSAPIProfile(parent, child TTSAPIProfileSettings) TTSAPIProfileSettin
 	if child.DefaultSpeed != "" {
 		out.DefaultSpeed = normalizeTTSSpeed(child.DefaultSpeed)
 	}
+	if child.Instruction != "" {
+		out.Instruction = strings.TrimSpace(child.Instruction)
+	}
 	return out
 }
 
@@ -230,6 +249,8 @@ func normalizeTTSAPIProvider(provider string) string {
 	switch strings.ToLower(strings.TrimSpace(provider)) {
 	case "", DefaultTTSAPIProvider:
 		return DefaultTTSAPIProvider
+	case TTSProviderStepFun:
+		return TTSProviderStepFun
 	default:
 		return ""
 	}
