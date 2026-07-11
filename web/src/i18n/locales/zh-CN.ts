@@ -37,6 +37,7 @@ import skills from './zh-CN/skills'
 import automations from './zh-CN/automations'
 import messages from './zh-CN/messages'
 import onboarding from './zh-CN/onboarding'
+import diagram from './zh-CN/diagram'
 
 const zhCN = {
   ...common,
@@ -78,6 +79,7 @@ const zhCN = {
   ...automations,
   ...messages,
   ...onboarding,
+  ...diagram,
 } as const
 
 export default zhCN

@@ -3,6 +3,7 @@ const workbench = {
   'workbench.activity.automations': 'Automations',
   'workbench.activity.books': 'Book Management',
   'workbench.activity.creator': 'Creator',
+  'workbench.activity.diagram': 'Diagram',
   'workbench.activity.lore': 'Lore',
   'workbench.activity.memory': 'Story Memory',
   'workbench.activity.settings': 'Settings',

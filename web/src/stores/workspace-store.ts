@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type RightPanel = 'ai' | 'lore' | 'creator' | 'teller' | 'outline' | 'characters' | 'versions' | null
+export type RightPanel = 'ai' | 'lore' | 'creator' | 'teller' | 'outline' | 'characters' | 'versions' | 'diagram' | null
 type BottomPanel = 'versions' | 'problems' | null
 export type WorkspaceMode = 'ide' | 'interactive' | 'books' | 'skills' | 'agents' | 'automations'
 
@@ -26,7 +26,7 @@ function isWorkspaceMode(value: unknown): value is WorkspaceMode {
 }
 
 function isRightPanel(value: unknown): value is RightPanel {
-  return value === 'ai' || value === 'lore' || value === 'creator' || value === 'teller' || value === 'outline' || value === 'characters' || value === 'versions' || value === null
+  return value === 'ai' || value === 'lore' || value === 'creator' || value === 'teller' || value === 'outline' || value === 'characters' || value === 'versions' || value === 'diagram' || value === null
 }
 
 function persistMode(mode: WorkspaceMode) {

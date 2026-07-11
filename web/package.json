@@ -54,6 +54,7 @@
     "radix-ui": "^1.4.3",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-drawio": "^1.0.7",
     "react-hotkeys-hook": "^5.3.2",
     "react-i18next": "^17.0.8",
     "react-markdown": "^10.1.0",

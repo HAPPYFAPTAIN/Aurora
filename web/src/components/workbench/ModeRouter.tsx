@@ -8,6 +8,7 @@ import { AgentPanel } from '@/components/Chat/AgentPanel'
 import { FilePreview } from '@/components/workbench/FilePreview'
 import { MarkdownEditor } from '@/components/Editor/MarkdownEditor'
 import { VersionPanel } from '@/components/Versions/VersionPanel'
+import { DiagramPanel } from '@/components/Diagram/DiagramPanel'
 import { HomeView } from '@/components/Home/HomeView'
 import { InteractiveLayout } from '@/features/interactive/components/InteractiveLayout'
 import { SettingPanel } from '@/features/interactive/components/SettingPanel'
@@ -28,7 +29,7 @@ import { WorkbenchShell } from './WorkbenchShell'
 import { flattenFileTree, formatNumber } from './workbench-utils'
 
 const WRITING_AGENT_INIT_EVENT = 'nova:writing-agent-init'
-type MainRouteId = 'settings' | 'skills' | 'agents' | 'automations' | 'books' | 'interactive' | 'versions' | 'ide-lore' | 'ide-teller' | 'ide-writing'
+type MainRouteId = 'settings' | 'skills' | 'agents' | 'automations' | 'books' | 'interactive' | 'versions' | 'diagram' | 'ide-lore' | 'ide-teller' | 'ide-writing'
 type PlanningDocumentIcon = 'ideas' | 'outline' | 'plan' | 'creator' | 'progress' | 'characterState'
 
 interface PlanningDocumentItem {
@@ -219,6 +220,7 @@ export function ModeRouter(props: ModeRouterProps) {
     openFiles: openTabs.map((tab) => tab.path),
   }), [openTabs, selectedFile])
   const versionsVisible = rightPanel === 'versions'
+  const diagramVisible = rightPanel === 'diagram'
   const agentsVisible = mode === 'agents'
   const automationsVisible = mode === 'automations'
   const skillsVisible = mode === 'skills'
@@ -331,7 +333,7 @@ export function ModeRouter(props: ModeRouterProps) {
       return
     }
     onSetMode('ide')
-    if (rightPanel === 'lore' || rightPanel === 'teller' || rightPanel === 'versions') onSetRightPanel(null)
+    if (rightPanel === 'lore' || rightPanel === 'teller' || rightPanel === 'versions' || rightPanel === 'diagram') onSetRightPanel(null)
   }
   const visibleMainRoute: MainRouteId = settingsOpen
     ? 'settings'
@@ -344,7 +346,9 @@ export function ModeRouter(props: ModeRouterProps) {
           : mode === 'books'
             ? 'books'
             : versionsVisible
-              ? 'versions'
+            ? 'versions'
+            : diagramVisible
+              ? 'diagram'
               : mode === 'interactive'
                 ? 'interactive'
                 : ideWorkspacePanel
@@ -504,6 +508,11 @@ export function ModeRouter(props: ModeRouterProps) {
             visible={versionsVisible}
             onClose={() => onSetRightPanel(null)}
           />
+        </MainRouteLayer>
+      )}
+      {mountedRoutes.has('diagram') && (
+        <MainRouteLayer visible={visibleMainRoute === 'diagram'}>
+          <DiagramPanel onClose={() => onSetRightPanel(null)} />
         </MainRouteLayer>
       )}
       {mountedRoutes.has('ide-lore') && (
