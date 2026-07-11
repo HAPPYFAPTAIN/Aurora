@@ -98,6 +98,7 @@ export function DiagramPanel({ onClose }: DiagramPanelProps) {
           </div>
         )}
         <DrawIoEmbed
+          baseUrl="/drawio"
           xml={diagramXml}
           urlParameters={{ ui: 'dark', noSaveBtn: true, spin: true, modified: false }}
           onLoad={handleLoad}
