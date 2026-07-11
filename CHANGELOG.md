@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- 图表编辑器：集成 draw.io（react-drawio），支持在写作模式和游戏模式中创建、编辑、保存图表；支持 AI 生成 draw.io XML 图表（人物关系图、流程图、时间线等）。
+- Diagram editor: Integrated draw.io (react-drawio), supporting diagram creation, editing, and saving in both Writing Mode and Game Mode; supports AI-generated draw.io XML diagrams (character relationship diagrams, flowcharts, timelines, etc.).
+
 ### Security
 
 - 数据脱敏：从仓库移除用户自定义小说配置（custom-*.json）和敏感内容预设（direct-erotica.json），仓库仅保留系统默认配置。

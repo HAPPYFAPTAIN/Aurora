@@ -1,0 +1,5 @@
+0a32db425641485331174ce50c6c96ff251773557ef712189f0f5fd80c448088  denova-darwin-amd64.tar.gz
+b2e4308d13077f3b11b1b9b7a204339fcea508358a96384eb8f678620a3d55b2  denova-darwin-arm64.tar.gz
+f05e052df69ab92ffa6f7a466988fccee64dffcdbfbc68a2ea8436dbffd6f69a  denova-linux-amd64.tar.gz
+a4824ee859852ee79eef70ec486c3afa86d346f816eda39fc916b400d50735ee  denova-linux-arm64.tar.gz
+0d8daeb21ab223cc14123d3810fb7a951ccd3f37a27845b933fad6a85be78a91  denova-windows-amd64.zip
