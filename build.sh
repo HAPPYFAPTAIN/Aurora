@@ -29,10 +29,10 @@ else
 fi
 
 echo "==> 编译 denova"
-go build ${EMBED_TAG} -ldflags "-X denova/internal/buildinfo.Version=${VERSION}" -o "${OUTPUT_DIR}/denova" ./cmd/denova/
+go build ${EMBED_TAG} -trimpath -ldflags "-s -w -X denova/internal/buildinfo.Version=${VERSION}" -o "${OUTPUT_DIR}/denova" ./cmd/denova/
 
 echo "==> 编译 denova-updater"
-go build -ldflags "-X denova/internal/buildinfo.Version=${VERSION}" -o "${OUTPUT_DIR}/denova-updater" ./cmd/denova-updater/
+go build -trimpath -ldflags "-s -w -X denova/internal/buildinfo.Version=${VERSION}" -o "${OUTPUT_DIR}/denova-updater" ./cmd/denova-updater/
 
 echo "==> 复制 skills 目录"
 cp -r skills "${OUTPUT_DIR}/skills"

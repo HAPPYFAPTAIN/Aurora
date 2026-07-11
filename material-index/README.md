@@ -1,96 +1,70 @@
-﻿# 资料卡片搜索增强服务
+# 资料卡片索引系统
 
-直接对接 Aurora 资料库 API 的搜索增强前端。不读文件，所有数据通过 Aurora 的 `/api/lore/items` API 获取，写入也通过 API 回传，与 Aurora 完全同步。
+资料卡片索引系统已集成到 Aurora 主程序中，不再需要独立运行搜索服务。
 
-## 与 Aurora 的关系
+## 集成方式
+
+资料卡片索引系统的全部功能（n-gram 全文搜索、AI 卡片生成、文本导入、工作区搜索）已作为 Aurora 内置 API 提供，通过以下端点访问：
+
+| API 端点 | 方法 | 说明 |
+|---------|------|------|
+| `/api/material-index/search` | GET | 全文搜索资料卡片（n-gram 中文索引，评分排序） |
+| `/api/material-index/stats` | GET | 索引统计信息 |
+| `/api/material-index/card/:id` | GET | 获取单张卡片详情 |
+| `/api/material-index/templates` | GET | 列出可用卡片模板 |
+| `/api/material-index/generate` | POST | AI 从文本提炼卡片并写入资料库 |
+| `/api/material-index/rebuild` | POST | 重建索引 |
+| `/api/material-index/import` | POST | 导入文本文件（md/txt） |
+| `/api/material-index/imports` | GET | 列出已导入文件 |
+| `/api/material-index/imports` | DELETE | 删除导入文件 |
+| `/api/material-index/workspace-search` | GET | 搜索工作区文件（章节、设定等） |
+
+## 使用方式
+
+1. 启动 Aurora 主程序
+2. 索引在首次访问搜索 API 时惰性构建
+3. 所有数据通过 Aurora 的资料库 API 管理，无需独立服务
+
+## 与 Aurora 资料库的关系
 
 ```
-Aurora (8080)                    搜索增强服务 (8927)
-┌─────────────────┐              ┌──────────────────┐
-│  资料库 API     │ <── 读取 ── │  n-gram 索引     │
-│  /api/lore/items│              │  搜索 + 评分     │
-│                 │ ── 写回 ──> │  详情披露        │
-│  workspace API  │ <── 代理 ── │  工作区搜索      │
-│  /api/workspace │              │  导入 + AI 生成  │
-└─────────────────┘              └──────────────────┘
+Aurora 主程序 (8080)
+┌─────────────────────────────────────────┐
+│  资料库 (lore items)                     │
+│  /api/lore/items — CRUD                  │
+│                                          │
+│  资料卡片索引 (内置)                      │
+│  /api/material-index/search — 全文搜索   │
+│  /api/material-index/generate — AI 生成  │
+│  /api/material-index/import — 文本导入   │
+│                                          │
+│  工作区搜索 (内置)                       │
+│  /api/material-index/workspace-search    │
+└─────────────────────────────────────────┘
 ```
 
-## 启动
-
-**前置条件**：Aurora 必须正在运行（搜索服务依赖 Aurora 的 API）。
-
-```bash
-# 编译
-cd search-server
-go build -o search-server.exe
-
-# 启动
-双击 启动搜索服务.bat
-```
-
-浏览器打开 **http://localhost:8927**
-
-## 功能
-
-| 功能 | 说明 |
-|------|------|
-| 全文搜索 | n-gram 中文索引，多关键词，评分排序 |
-| 详情披露 | 点击卡片头展开完整内容、关键词、简介 |
-| 关键词高亮 | 搜索结果中匹配的关键词高亮显示 |
-| 工作区搜索 | 同时搜索章节正文和设定文件 |
-| 类型筛选 | 按人物/地点/世界观等类型过滤 |
-| 文本导入 | 拖拽 md/txt 文件到导入区 |
-| AI 卡片生成 | 按模板提炼文本，直接写入 Aurora 资料库 |
-| 卡片删除 | 从 Aurora 资料库删除卡片 |
-
-## 数据流
-
-所有操作都通过 Aurora API：
-
-- **读取**：`GET http://localhost:8080/api/lore/items` → 构建索引 → 搜索
-- **创建**：`POST http://localhost:8080/api/lore/items` → AI 生成的卡片直接写入资料库
-- **更新**：`PATCH http://localhost:8080/api/lore/items/:id`
-- **删除**：`DELETE http://localhost:8080/api/lore/items/:id`
-- **工作区搜索**：`GET http://localhost:8080/api/workspace/search`
-
-搜索服务不直接读写 `items.json`，所有变更都通过 Aurora API，确保数据一致性。
-
-## API Key 配置
-
-AI 生成功能需要 API Key。配置来源（按优先级）：
-
-1. 环境变量 `OPENAI_API_KEY`
-2. 本文件 `config.toml` 中的 `openai_api_key`
-3. Aurora `config.toml` 中 `[[model_profiles]]` 的 `openai_api_key`
-
-如果 Aurora 的 config.toml 中 `openai_api_key` 为空（通过 UI 配置的情况），需要在本文件或环境变量中单独设置。
-
-## 文件结构
+## 目录结构
 
 ```
 material-index/
-├── config.toml               搜索服务配置
-├── 启动搜索服务.bat
-├── 编译搜索服务.bat
-├── imports/                  导入的文本文件
-├── cards/                    （备份用，主要存储在资料库）
-└── search-server/             Go 程序
-    ├── main.go
-    ├── config.go
-    ├── index.go
-    ├── search.go
-    ├── cardgen.go
-    ├── go.mod
-    └── dist/                  前端
-        ├── index.html
-        ├── style.css
-        └── app.js
+├── config.toml               配置参考（主程序内置，此文件仅作文档）
+├── imports/                  导入的文本文件（运行时数据）
+└── cards/                    卡片文件备份（运行时数据）
 ```
 
-## 模块管理
+## AI 配置
 
-| 操作 | 方法 |
-|------|------|
-| 启动 | 先启动 Aurora，再运行 启动搜索服务.bat |
-| 关闭 | 关闭进程 |
-| 移除 | 删除 `search-server/` 目录 |
+AI 卡片生成功能使用 Aurora 主配置 (`config.toml`) 中的模型配置：
+- `openai_api_key` — API Key
+- `openai_base_url` — API 基础 URL
+- `openai_model` — 模型名称
+
+也支持从 `[[model_profiles]]` 中 ID 为 `default` 的配置自动读取。
+
+## Skills 集成
+
+配套的 `skills/material-index/` Skill 提供了通过 Agent 进行卡片提炼、搜索和整理的能力，包括：
+- 导入文本资料
+- 按模板提炼卡片
+- 搜索资料卡片
+- 整理资料库

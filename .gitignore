@@ -7,7 +7,8 @@ search-server.exe
 denova-updater.exe
 
 # Go build output
-material-index/search-server/search-server.exe
+material-index/search-server/
+material-index/*.bat
 
 # Source code (tracked in aurora-src submodule)
 aurora-src/
@@ -27,6 +28,12 @@ aurora-src/
 .nova/book_meta/
 .nova/books.json
 .nova/messages/
+# User-created custom configs (contain novel-specific content, not system defaults)
+.nova/story-directors/custom-*.json
+.nova/story-tellers/custom-*.json
+.nova/story-director-modules/*/custom-*.json
+# Sensitive content presets
+.nova/story-tellers/direct-erotica.json
 
 # External skills with their own git repos
 skills/humanizer-zh/
@@ -35,6 +42,7 @@ skills/humanizer-zh/
 material-index/imports/*.md
 material-index/imports/*.txt
 material-index/cards/
+material-index/search-server/
 
 # Logs
 log/

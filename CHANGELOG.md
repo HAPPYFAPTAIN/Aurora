@@ -6,7 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-_Nothing yet._
+### Security
+
+- 数据脱敏：从仓库移除用户自定义小说配置（custom-*.json）和敏感内容预设（direct-erotica.json），仓库仅保留系统默认配置。
+- Data desensitization: Removed user-created novel configs (custom-*.json) and sensitive content presets (direct-erotica.json) from the repository; only system defaults are kept.
+- 更新 .gitignore：排除所有 custom-*.json 自定义配置和敏感内容，防止用户创作内容意外提交。
+- Updated .gitignore: Excludes all custom-*.json configs and sensitive content to prevent accidental commits of user creative work.
+
+### Removed
+
+- 从仓库移除 `denova.exe` 二进制文件，仓库不再包含编译产物。
+- Removed `denova.exe` binary from the repository; the repo no longer contains compiled artifacts.
+- 移除独立的 `material-index/search-server/` 代码（已集成到 Aurora 主程序中）。
+- Removed standalone `material-index/search-server/` code (now integrated into the Aurora main binary).
+
+### Changed
+
+- 资料卡片索引系统已集成到 Aurora 主程序，不再需要独立搜索服务；API 端点为 `/api/material-index/*`。
+- Material index system integrated into the Aurora main binary; no longer requires a standalone search service; API endpoints at `/api/material-index/*`.
+- 构建脚本添加 `-trimpath -ldflags "-s -w"` 优化标志，二进制体积减少约 30%。
+- Build scripts now use `-trimpath -ldflags "-s -w"` optimization flags, reducing binary size by ~30%.
 
 ## [v0.1.19] - 2026-07-11
 
