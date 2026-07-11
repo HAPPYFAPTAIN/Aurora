@@ -40,25 +40,23 @@ type GenerateResult struct {
 	XML string `json:"xml"`
 }
 
-// diagramSystemPrompt 指导 AI 生成 draw.io XML 格式图表的系统提示词。
-// 参考 next-ai-draw-io 的做法，约束输出格式和图表元素规范。
-const diagramSystemPrompt = `You are a diagram generation assistant. Generate a valid draw.io XML diagram based on the user's request.
+// diagramSystemPrompt 指导 AI 生成 Mermaid 格式图表的系统提示词。
+const diagramSystemPrompt = `You are a diagram generation assistant. Generate a valid Mermaid diagram based on the user's request.
 
 Rules:
-1. Output ONLY the XML, no explanation, no markdown code fences
-2. Use mxGraphModel format
-3. Use appropriate shapes (rectangles for boxes, arrows for connections)
-4. Add labels to all elements
-5. Use colors: blue for primary, green for success, orange for warning, red for danger
-6. Keep the layout clean and readable
-7. For character relationship diagrams: use person shapes with names, arrows with relationship labels
-8. For flowcharts: use process shapes, decision diamonds, arrows with yes/no labels
-9. For timelines: use horizontal layout with dates
-10. For story structure: use a tree/hierarchy layout
+1. Output ONLY the Mermaid code, no explanation, no markdown code fences
+2. Use appropriate diagram types: flowchart, sequenceDiagram, classDiagram, stateDiagram, gantt, gitGraph, etc.
+3. Add clear labels to all nodes and connections
+4. Use styles/colors when helpful: linkStyle, classDef, style
+5. Keep the layout clean and readable
+6. For character relationship diagrams: use flowchart with person nodes and labeled arrows
+7. For flowcharts: use flowchart TD or LR with decision diamonds and yes/no labels
+8. For timelines: use gantt or flowchart with horizontal layout
+9. For story structure: use flowchart with tree/hierarchy layout
 
-The XML must start with <mxGraphModel> and end with </mxGraphModel>.`
+The output must start with a Mermaid diagram type keyword (e.g. "flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "gantt", etc.) and be valid Mermaid syntax.`
 
-// Service 是图表生成服务，通过 OpenAI 兼容的 Chat Completions API 生成 draw.io XML。
+// Service 是图表生成服务，通过 OpenAI 兼容的 Chat Completions API 生成 Mermaid 代码。
 type Service struct {
 	httpClient *http.Client
 }
@@ -152,20 +150,20 @@ func (s *Service) Generate(ctx context.Context, cfg *config.Config, agentKind st
 		return GenerateResult{}, ErrEmptyResponse
 	}
 
-	xml := extractXML(content)
-	log.Printf("[diagramgen] generate done model=%q xml_len=%d", resolved.OpenAIModel, len(xml))
+	mermaid := extractMermaid(content)
+	log.Printf("[diagramgen] generate done model=%q mermaid_len=%d", resolved.OpenAIModel, len(mermaid))
 
-	return GenerateResult{XML: xml}, nil
+	return GenerateResult{XML: mermaid}, nil
 }
 
-// extractXML 从模型输出中提取 XML 内容。
-// 模型有时会包裹 markdown 代码块（```xml ... ```），这里做容错处理。
-func extractXML(content string) string {
+// extractMermaid 从模型输出中提取 Mermaid 代码。
+// 模型有时会包裹 markdown 代码块（```mermaid ... ```），这里做容错处理。
+func extractMermaid(content string) string {
 	trimmed := strings.TrimSpace(content)
 
 	// 去除 markdown 代码块包裹
 	if strings.HasPrefix(trimmed, "```") {
-		// 去掉开头的 ```xml 或 ```
+		// 去掉开头的 ```mermaid 或 ```
 		lines := strings.SplitN(trimmed, "\n", 2)
 		if len(lines) > 1 {
 			trimmed = strings.TrimSpace(lines[1])

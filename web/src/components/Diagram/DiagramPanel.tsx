@@ -1,6 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { DrawIoEmbed, type EventLoad } from 'react-drawio'
+import mermaid from 'mermaid'
 import { LoaderCircle, Sparkles, XIcon } from 'lucide-react'
 import { generateDiagram } from '@/lib/api-client/diagrams'
 import { Button } from '@/components/ui/button'
@@ -13,32 +13,74 @@ interface DiagramPanelProps {
   onClose?: () => void
 }
 
+// 初始化 Mermaid（仅一次）
+let mermaidInitialized = false
+function ensureMermaidInit(theme: 'dark' | 'light') {
+  if (mermaidInitialized) return
+  mermaid.initialize({
+    startOnLoad: false,
+    theme,
+    securityLevel: 'loose',
+    fontFamily: 'inherit',
+  })
+  mermaidInitialized = true
+}
+
 /**
  * DiagramPanel 是一个简洁的 AI 图表自动生成页面：
- * 顶部输入提示词 → 点击生成 → 下方 draw.io 暗黑模式渲染结果。
- * 不包含编辑工具栏、文件保存/打开等功能。
+ * 顶部输入提示词 → 点击生成 → 下方 Mermaid 渲染结果。
  */
 export function DiagramPanel({ onClose }: DiagramPanelProps) {
   const { t } = useTranslation()
   const [prompt, setPrompt] = useState('')
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
-  const [diagramXml, setDiagramXml] = useState('')
-  const [editorReady, setEditorReady] = useState(false)
+  const [mermaidCode, setMermaidCode] = useState('')
+  const [svgHtml, setSvgHtml] = useState('')
+  const [rendering, setRendering] = useState(false)
+  const renderCounter = useRef(0)
 
-  const handleLoad = useCallback((_data: EventLoad) => {
-    setEditorReady(true)
-  }, [])
+  // 检测当前主题
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+  ensureMermaidInit(isDark ? 'dark' : 'light')
+
+  // 当 mermaidCode 变化时渲染
+  useEffect(() => {
+    if (!mermaidCode) {
+      setSvgHtml('')
+      return
+    }
+    let cancelled = false
+    setRendering(true)
+    setError('')
+    const id = `mermaid-${++renderCounter.current}`
+    mermaid.render(id, mermaidCode)
+      .then((result) => {
+        if (!cancelled) {
+          setSvgHtml(result.svg)
+          setRendering(false)
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error('[DiagramPanel] mermaid render failed', err)
+          setError(err instanceof Error ? err.message : t('diagram.renderFailed'))
+          setRendering(false)
+        }
+      })
+    return () => { cancelled = true }
+  }, [mermaidCode, t])
 
   const handleGenerate = useCallback(async () => {
     const trimmed = prompt.trim()
     if (!trimmed || generating) return
     setGenerating(true)
     setError('')
+    setSvgHtml('')
     try {
       const res = await generateDiagram({ prompt: trimmed })
       if (res.xml) {
-        setDiagramXml(res.xml)
+        setMermaidCode(res.xml)
       } else {
         setError(t('diagram.generateFailed'))
       }
@@ -90,19 +132,23 @@ export function DiagramPanel({ onClose }: DiagramPanelProps) {
         </div>
       </div>
 
-      {/* 图表渲染区 — draw.io 暗黑模式 */}
-      <div className="relative min-h-0 flex-1">
-        {!editorReady && (
+      {/* 图表渲染区 */}
+      <div className="relative min-h-0 flex-1 overflow-auto p-4">
+        {rendering && (
           <div className="absolute inset-0 z-[5] flex items-center justify-center bg-[var(--nova-surface)] text-xs text-[var(--nova-text-muted)]">
-            {t('diagram.editorLoading')}
+            {t('diagram.rendering')}
           </div>
         )}
-        <DrawIoEmbed
-          baseUrl="/drawio"
-          xml={diagramXml}
-          urlParameters={{ ui: 'dark', noSaveBtn: true, spin: true, modified: false }}
-          onLoad={handleLoad}
-        />
+        {svgHtml ? (
+          <div
+            className="flex h-full w-full items-center justify-center"
+            dangerouslySetInnerHTML={{ __html: svgHtml }}
+          />
+        ) : !rendering && !generating && (
+          <div className="flex h-full items-center justify-center text-[var(--nova-text-faint)]">
+            {t('diagram.empty')}
+          </div>
+        )}
       </div>
     </div>
   )
