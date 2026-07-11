@@ -4,17 +4,23 @@ denova
 Aurora.exe
 Aurora
 search-server.exe
+denova-updater.exe
 
 # Go build output
 material-index/search-server/search-server.exe
 
+# Source code (tracked in aurora-src submodule)
+aurora-src/
+
 # === Workspace data (contains API keys & user creative content) ===
 # Workspace config has real API keys - never commit
 .nova/config.toml
+.nova/projects/
 # Book project directories (user's creative writing + per-book configs)
 .nova/当海风吹散硝烟/
 .nova/禁忌之爱/
 .nova/雪落扬子江/
+.nova/浮生假寐/
 # User novel chapters (存档 = archive)
 .nova/存档/
 # Workspace state
@@ -41,6 +47,9 @@ tools/cache-proxy/
 
 # Playwright CLI artifacts
 .playwright-cli/
+
+# Uploads (runtime data)
+.uploads/
 
 # OS
 Thumbs.db

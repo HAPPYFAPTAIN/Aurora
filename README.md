@@ -1,9 +1,9 @@
 <p align="center">
-  <img src="./web/public/favicon.svg" alt="Aurora 图标" width="76" height="76">
+  <img src="./web/favicon.svg" alt="Denova Aurora 图标" width="76" height="76">
 </p>
 
 <p align="center">
-  <strong>Aurora 是一个面向小说创作与 AI 角色扮演游戏的 AI 创作平台，内置支持 AI Agents、Skills、Subagent Workflows、自动化、图像自动生成与项目版本管理等核心能力。</strong>
+  <strong>Denova Aurora — 面向小说创作与 AI 角色扮演游戏的 AI 创作平台，内置 AI Agents、Skills、TTS 语音朗读、流式合成、图像生成、自动化与项目版本管理。</strong>
 </p>
 
 <p align="center">
@@ -11,46 +11,25 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/HAPPYFAPTAIN/Aurora/releases"><img alt="Release" src="https://img.shields.io/github/v/release/HAPPYFAPTAIN/Aurora?style=flat-square"></a>
-  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/HAPPYFAPTAIN/Aurora?style=flat-square"></a>
+  <a href="https://github.com/HAPPYFAPTAIN/Denova-Modified-Version-Aurora/releases"><img alt="Release" src="https://img.shields.io/github/v/release/HAPPYFAPTAIN/Denova-Modified-Version-Aurora?style=flat-square"></a>
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/HAPPYFAPTAIN/Denova-Modified-Version-Aurora?style=flat-square"></a>
   <img alt="Go" src="https://img.shields.io/badge/Go-1.26%2B-00ADD8?style=flat-square&logo=go&logoColor=white">
   <img alt="Node.js" src="https://img.shields.io/badge/Node.js-20%2B-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white">
 </p>
 
 <p align="center">
-  当前版本：<strong>v0.1.19</strong>（2026-07-10） · Beta
+  当前版本：<strong>v0.1.19</strong>（2026-07-11） · Beta
 </p>
 
 <p align="center">
   Fork 自 <a href="https://github.com/alfredxw/denova">alfredxw/denova</a>（原作者 <a href="https://github.com/alfredxw">@alfredxw</a>），基于 Apache-2.0 协议开源
 </p>
 
-![Aurora 写作模式](./img/ide.png)
-
-<details>
-<summary>查看更多界面截图</summary>
-
-### 游戏模式
-
-![Aurora 游戏模式](./img/interactive.png)
-
-### 剧情分支
-
-![剧情分支](./img/branch.png)
-
-### 资料库
-
-![Aurora 资料库](./img/setting.png)
-
-### 方案预设
-
-![Aurora 方案预设](./img/story-teller.png)
-
-</details>
+---
 
 ## 为什么选择 Aurora
 
-Aurora 面向长期创作项目和互动娱乐，把写作 IDE、互动故事、结构化资料库、Agent 工具调用、图像生成、自动化和本地版本管理放在同一个项目工作区里，让创作过程可以反复迭代、回溯和沉淀。
+Aurora 面向长期创作项目和互动娱乐，把写作 IDE、互动故事、结构化资料库、Agent 工具调用、TTS 语音朗读、图像生成、自动化和本地版本管理放在同一个项目工作区里，让创作过程可以反复迭代、回溯和沉淀。
 
 你可以从原创灵感开始，也可以导入已有小说做同人、改编或续写；还可以导入 AI 酒馆角色卡，快速搭建互动文字冒险。模型上下文会按来源、用途和大小上限组织，避免把完整历史、日志或全部设定无界塞进下一轮对话。
 
@@ -59,78 +38,44 @@ Aurora 面向长期创作项目和互动娱乐，把写作 IDE、互动故事、
 - **写作模式**：面向小说创作，支持 Markdown 编辑、多 Tab、全局搜索、章节统计、大纲、章节组细纲、进度追踪和现有小说导入。
 - **创作 Agent**：可读取选区、文件和资料库，调用工具生成或修改章节，并通过 Skills / SubAgents 适配不同写作任务、文风和工作流。
 - **游戏模式**：运行互动文字冒险，支持玩家输入、剧情分支、故事线切换、行动建议、场景记忆、长期故事记忆，以及由故事导演驱动的目标、压力、代价、事件卡包和规则检定。
+- **TTS 语音朗读**：支持 OpenAI 兼容 TTS 和阶跃星辰 Step Fun TTS，长文本自动分段合成、SSE 流式边生成边播放、音色列表自动获取、编辑器朗读整篇文章。
 - **资料库与预设**：沉淀角色、世界观、地点、势力、规则、物品等稳定设定；叙事风格负责文风、提示词槽位和场景风格，故事导演可插拔组合叙事风格、事件包、TRPG 检定、状态系统、Story Memory Structure、开局选择器和图像方案，且每个模块都可独立关闭。
 - **图像创作**：支持章节插画、互动图像和书籍封面生成，复用 OpenAI 兼容图像模型配置，并在界面中预览和管理结果。
 - **上下文管理**：渐进式组织模型可见上下文，支持 Memory Compact、缓存优化和有界工具结果，降低长篇创作的上下文噪音与 token 成本。
-- **生命周期钩子**：借鉴 QwenPaw 设计，在 Agent 运行的四个阶段（运行开始、模型调用前、工具结果后、运行完成）注入自定义回调，支持按优先级注册多个钩子，用于上下文注入、工具结果截断、记忆触发等场景。
-- **异步记忆系统**：后台 goroutine + channel 串行处理记忆任务，将单次大型 LLM 调用拆分为分块管道（当前状态→主角信息→重要角色→事件剧情），每个分块完成后通过 SSE 实时推送进度，避免 token 溢出和输出截断。
+- **异步记忆系统**：后台 goroutine + channel 串行处理记忆任务，将单次大型 LLM 调用拆分为分块管道，每个分块完成后通过 SSE 实时推送进度，避免 token 溢出和输出截断。
 - **版本与恢复**：基于本地 Git 保存版本、查看 Diff、恢复历史，并支持定时保存和 Agent 大量输出后的自动保存。
 - **自动化**：支持定时任务、Review、自动续写和自定义 Prompt 工作流。
 - **产品化体验**：中英文界面、浅色/深色主题、OpenAI 兼容模型配置、远程访问、PWA 手机使用，以及 Windows / macOS / Linux 全平台支持。
 - **资料卡片索引**：内置资料卡片导入、AI 提炼和全文搜索增强系统，支持从文本素材自动生成结构化知识卡片并写入资料库。
 - **去AI味改稿**：内置去AI味改稿写手 Skill，针对中文小说正文消除 AI 写作痕迹，修正排版、标点、病句，保留原意和叙事节奏。
 
-## 与原版 denova 的差异与进步
+## 与原版 denova 的差异
 
-Aurora Fork 自 [alfredxw/denova](https://github.com/alfredxw/denova)，在保持与上游完全同步的基础上，额外引入了以下架构级特性和创作工具：
+Aurora Fork 自 [alfredxw/denova](https://github.com/alfredxw/denova)，在保持与上游同步的基础上，额外引入了以下特性：
 
-### Aurora 独有特性
-
-| 特性 | 说明 | 解决的问题 |
-|------|------|-----------|
-| **生命周期钩子系统** | 在 Agent 运行的四个阶段（运行开始、模型调用前、工具结果后、运行完成）注入按优先级排序的自定义回调 | 原版缺少可扩展的 Agent 生命周期入口，无法在不侵入核心代码的前提下注入上下文、截断工具结果或触发后台任务 |
-| **异步记忆 Worker** | 后台 goroutine + channel 串行处理记忆任务，将单次大型 LLM 调用拆分为分块管道（当前状态→主角信息→重要角色→事件剧情），每块完成后通过 SSE 实时推送进度 | 原版的记忆整理是一次性大调用，容易 token 溢出、输出截断或乱码；用户反馈"Agent 耗时长、经常截断" |
-| **资料卡片索引系统** | 全文搜索服务 + AI 卡片提炼 + 9 种预设模板（人物/事件/地点/世界观/势力/规则/物品/概念/分析），支持从文本素材批量导入 | 原版资料库只能手动创建，缺少从外部文本批量提炼和搜索的能力 |
-| **去AI味改稿 Skill** | 针对中文小说正文的 AI 写作痕迹消除，修正排版、标点、病句，保留原意和叙事节奏 | 原版没有针对中文 AI 文风的专门后处理工具 |
-| **中文人性化 Skill** | 检测和重写 AI 风格中文文本，支持学术 AIGC 降重和风格转换 | 原版缺少中文文风优化能力 |
-
-### 保持同步的部分
-
-- 上游 denova 的全部 22 个 commit（2026-07-05 至 2026-07-07）已同步，包括 TRPG 1d20 规则简化、导演控制台重构、Agent context 大规模重构等
-- PR [#42](https://github.com/alfredxw/denova/pull/42)（切换会话不中断流式任务）由 Aurora 所有者贡献回上游
-- GitHub Issue 模板、PR 标题检查 CI、Release 工作流、构建脚本均已从上游同步
-- Aurora 特有功能均设计为可选模块，不影响原版功能的核心流程
-
-### 优势互补
-
-Aurora 与上游 denova 保持**优势互补**的关系：
-
-- **上游 denova** 专注于核心写作与游戏体验的打磨，是功能基准和稳定发布源
-- **Aurora** 作为实验性分支，在架构层面探索新的扩展机制（生命周期钩子、异步记忆、安全扫描等），成熟后通过 PR 回馈上游
-- 上游的每一次发布，Aurora 都会及时同步并重新构建，确保用户始终获得上游最新功能 + Aurora 独有增强
-
-如果你只需要原版功能，直接使用 [alfredxw/denova](https://github.com/alfredxw/denova) 即可；如果你还需要更灵活的架构扩展、更智能的记忆管理和更强大的资料处理能力，欢迎试用 Aurora。
-
-## 写作模式与游戏模式
-
-Aurora 有两个并列工作台。写作模式关注小说生产线：构思、设定、大纲、章节细纲、正文和进度；游戏模式关注可游玩的互动叙事：玩家行动、剧情分支、场景记忆、故事线和选择推进。
-
-游戏模式内置故事导演能力：互动 Agent 负责理解玩家行动并生成本回合 TurnBrief，后端工具只执行字段校验、状态结算和 1d20 检定等确定性工作；后台 Director Agent 在每个回合落盘后维护分支级单文档 `director.md`，用"正文Agent可读"和"后台导演私密"两个区域同时承载阶段钩子、资料库锚点、重要角色/势力、当前场景、线索密度、检定代价、危机反转和最近分支安排。互动正文与快捷行动只读取 `director.md` 的有界可见区，导演私密区只提供给后台导演。创作者可以在故事导演中组合或关闭叙事风格、事件包、TRPG 检定、状态系统、Story Memory Structure、开局选择器和图像方案，并可配置分支规划回合数与单份规划模板。
-
-两种模式会共享适合长期复用的资产，例如资料库、方案预设、模型与 Agent 配置、Skills、版本管理和基础设置。写作进度、章节细纲等生产状态不会自动进入游戏模式；如果互动故事需要引用某段正文或当前进度，建议先把稳定信息沉淀进资料库，或在输入中明确引用。
-
-## 欢迎交流
-
-Aurora 仍在快速迭代中，欢迎反馈问题、分享用法或一起讨论创作工作流。
-
-<p align="center">
-  <img src="./img/wechat.png" alt="微信交流" width="240">
-</p>
+| 特性 | 说明 |
+|------|------|
+| **TTS 语音朗读** | 支持 OpenAI 兼容 TTS 和阶跃星辰 Step Fun TTS（stepaudio-2.5-tts），长文本自动分段合成、SSE 流式边生成边播放、音色列表自动获取（32 个 Step Fun 音色 + 10 个 OpenAI 音色）、语音风格指令（instruction）、编辑器工具栏朗读按钮 |
+| **生命周期钩子系统** | 在 Agent 运行的四个阶段注入按优先级排序的自定义回调，支持上下文注入、工具结果截断、记忆触发 |
+| **异步记忆 Worker** | 后台 goroutine + channel 串行处理记忆任务，分块管道 + SSE 实时进度推送，避免 token 溢出 |
+| **资料卡片索引系统** | 全文搜索服务 + AI 卡片提炼 + 9 种预设模板，支持从文本素材批量导入 |
+| **去AI味改稿 Skill** | 针对中文小说正文的 AI 写作痕迹消除，修正排版、标点、病句 |
+| **中文人性化 Skill** | 检测和重写 AI 风格中文文本，支持学术 AIGC 降重和风格转换 |
 
 ## 快速开始
 
 ### 下载 Release
 
-从 [GitHub Releases](https://github.com/HAPPYFAPTAIN/Aurora/releases) 下载对应平台压缩包，解压后运行：
+从 [GitHub Releases](https://github.com/HAPPYFAPTAIN/Denova-Modified-Version-Aurora/releases) 下载对应平台压缩包，解压后运行：
 
 ```bash
-./Aurora
+./denova
 ```
 
-Windows 用户运行 `Aurora.exe`。macOS 如果提示安全限制，可以执行：
+Windows 用户运行 `denova.exe`。macOS 如果提示安全限制，可以执行：
 
 ```bash
-xattr -dr com.apple.quarantine Aurora
+xattr -dr com.apple.quarantine denova
 ```
 
 ### 从源码运行
@@ -138,8 +83,8 @@ xattr -dr com.apple.quarantine Aurora
 需要 Go 1.26+、Node.js 20+ 和 pnpm。
 
 ```bash
-git clone https://github.com/HAPPYFAPTAIN/Aurora.git
-cd Aurora/aurora-src
+git clone https://github.com/HAPPYFAPTAIN/Denova-Modified-Version-Aurora.git
+cd Denova-Modified-Version-Aurora/aurora-src
 corepack enable
 ./bootstrap.sh
 ```
@@ -151,29 +96,7 @@ corepack enable
 
 ## 模型与配置
 
-Aurora 使用 OpenAI 兼容接口。推荐先在设置页配置语言模型、图像模型、Agent 参数、默认写作 Skill、编辑器、游戏模式、版本管理、语言、主题和字体。
-
-需要脚本化启动或部署时，也可以用环境变量覆盖模型配置：
-
-```bash
-export OPENAI_API_KEY="your-api-key"
-export OPENAI_BASE_URL="https://api.deepseek.com"
-export OPENAI_MODEL="deepseek-v4-pro"
-export OPENAI_IMAGE_API_KEY="your-openai-image-key"
-export OPENAI_IMAGE_BASE_URL="https://api.openai.com/v1"
-export OPENAI_IMAGE_MODEL="gpt-image-1"
-```
-
-可选 Aurora 启动环境变量：
-
-```bash
-export AURORA_WORKSPACE="/path/to/your-workspace"
-export AURORA_DIR="./.aurora"
-export AURORA_SKILLS_DIR="./skills"
-export AURORA_WEB_DIR="./web"
-export AURORA_BACKEND_PORT="8080"
-export AURORA_FRONTEND_PORT="5173"
-```
+Aurora 使用 OpenAI 兼容接口。推荐先在设置页配置语言模型、图像模型、TTS 模型、Agent 参数、默认写作 Skill、编辑器、游戏模式、版本管理、语言、主题和字体。
 
 配置优先级：
 
@@ -181,29 +104,22 @@ export AURORA_FRONTEND_PORT="5173"
 内置默认值 < 全局 config.toml < 用户级配置 < 工作区级配置 < 环境变量
 ```
 
-## 资料卡片索引模块
+### TTS 语音朗读配置
 
-Aurora 内置资料卡片索引系统，包含：
+在 **设置页 → TTS API** 中配置：
 
-- **Aurora Skill 插件**（`skills/material-index/`）：Agent 可直接在对话中导入文本、按模板提炼卡片、搜索和整理资料库
-- **搜索增强服务**（`material-index/search-server/`）：可选的全文搜索 Web 界面，支持 n-gram 中文索引、详情披露和工作区搜索
-- **卡片模板**（`skills/material-index/templates/`）：人物、事件、地点、世界观、势力、规则、物品、概念、分析 9 种模板
+1. 选择 Provider（OpenAI 兼容 / 阶跃星辰 Step Fun）
+2. 填入 API Key、Base URL、Model
+3. 点击音色下拉按钮自动获取可用音色列表
+4. 可选填写语音风格指令（如"语气温柔，语速偏慢"）
 
-详见 [material-index/README.md](./material-index/README.md)。
+配置完成后，在聊天消息或编辑器工具栏点击喇叭图标即可朗读。
 
 ## 远程访问与手机使用
 
-Aurora 可以在本机、局域网或自托管服务器上使用。Release 包已包含前端资源；从源码部署时可先构建前端：
-
-```bash
-pnpm --dir web build
-```
-
 在 **设置页 → 远程访问** 开启「允许局域网访问」并设置用户名和密码后，其他设备可以打开设置页展示的访问地址。手机浏览器登录后可添加到主屏幕，以接近独立应用的方式使用。
 
-如果要通过公网或域名访问，建议使用 Caddy / Nginx 等反向代理提供 HTTPS，避免凭据明文传输，并确保浏览器剪贴板、PWA 等能力正常工作。
-
-Caddy 示例：
+如果要通过公网或域名访问，建议使用 Caddy / Nginx 等反向代理提供 HTTPS：
 
 ```text
 aurora.example.com {
@@ -226,27 +142,21 @@ aurora.example.com {
 ./bootstrap.sh be
 ```
 
-允许局域网设备访问前端开发服务：
-
-```bash
-./bootstrap.sh fe --lan
-```
-
 ## 赞助项目
 
-> 给项目冲点token，帮助这个项目持续迭代，持续开源，你的支持真的很重要！非常感谢！
+> 给项目冲点 token，帮助这个项目持续迭代，持续开源！
 
 <p align="center">
-  <img src="./img/donate.png" alt="捐赠" width="240">
+  <img src="./web/donate.png" alt="捐赠" width="240">
 </p>
 
 ## Star History
 
-<a href="https://www.star-history.com/#HAPPYFAPTAIN/Aurora&type=date&legend=top-left">
+<a href="https://www.star-history.com/#HAPPYFAPTAIN/Denova-Modified-Version-Aurora&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=HAPPYFAPTAIN/Aurora&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=HAPPYFAPTAIN/Aurora&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=HAPPYFAPTAIN/Aurora&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=HAPPYFAPTAIN/Denova-Modified-Version-Aurora&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=HAPPYFAPTAIN/Denova-Modified-Version-Aurora&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=HAPPYFAPTAIN/Denova-Modified-Version-Aurora&type=date&legend=top-left" />
  </picture>
 </a>
 
