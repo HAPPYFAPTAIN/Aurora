@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import type { ActorStateModule, EventPackageModule, ImagePreset, OpeningSelectorModule, RuleSystemModule, StoryDirectorModuleRefs, StoryMemoryStructureModule, Teller } from '../../types'
+import type { ActorStateModule, EventPackageModule, ImagePreset, RuleSystemModule, StoryDirectorModuleRefs, StoryMemoryStructureModule, Teller } from '../../types'
 import { consoleSectionClassName, selectClassName } from './constants'
 import { SectionTitle } from './shared'
 import { normalizeIDList } from './utils'
@@ -16,7 +16,6 @@ export function DirectorModuleConsole({
   selectedActorStateName,
   selectedMemoryStructureCount,
   selectedMemoryStructureTotal,
-  selectedOpeningName,
   selectedImageName,
   selectedEventCardCount,
   tellers,
@@ -24,7 +23,6 @@ export function DirectorModuleConsole({
   ruleSystems,
   actorStates,
   memoryStructures,
-  openingSelectors,
   imagePresets,
   onModuleRefChange,
 }: {
@@ -34,7 +32,6 @@ export function DirectorModuleConsole({
   selectedActorStateName: string
   selectedMemoryStructureCount: number
   selectedMemoryStructureTotal: number
-  selectedOpeningName: string
   selectedImageName: string
   selectedEventCardCount: number
   tellers: Teller[]
@@ -42,7 +39,6 @@ export function DirectorModuleConsole({
   ruleSystems: RuleSystemModule[]
   actorStates: ActorStateModule[]
   memoryStructures: StoryMemoryStructureModule[]
-  openingSelectors: OpeningSelectorModule[]
   imagePresets: ImagePreset[]
   onModuleRefChange: <K extends keyof StoryDirectorModuleRefs>(key: K, value: StoryDirectorModuleRefs[K]) => void
 }) {
@@ -136,20 +132,6 @@ export function DirectorModuleConsole({
             />
           </ModuleRefRow>
           <ModuleRefRow
-            label={t('settingPanel.presetKind.opening')}
-            summary={selectedOpeningName}
-            enabled={!refs.opening_selector_disabled}
-            onEnabledChange={(enabled) => onModuleRefChange('opening_selector_disabled', !enabled)}
-          >
-            <ModuleSelect
-              value={refs.opening_selector_id || ''}
-              fallbackValue="default"
-              enabled={!refs.opening_selector_disabled}
-              items={openingSelectors}
-              onChange={(value) => onModuleRefChange('opening_selector_id', value)}
-            />
-          </ModuleRefRow>
-          <ModuleRefRow
             label={t('settingPanel.presetKind.image')}
             summary={selectedImageName}
             enabled={!refs.image_preset_disabled}
@@ -172,8 +154,8 @@ export function DirectorModuleConsole({
 function ModuleGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid content-start gap-1.5 self-start">
-      <div className="px-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--nova-text-faint)]">{label}</div>
-      <div className="grid content-start gap-1 rounded-[var(--nova-radius)] bg-[var(--nova-surface-2)]/60 p-1.5">
+      <div className="px-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--nova-text-muted)]">{label}</div>
+      <div className="grid content-start gap-1 rounded-[11px] border border-[var(--preset-line)] bg-[var(--preset-raised)]/70 p-1.5">
         {children}
       </div>
     </div>
@@ -198,8 +180,8 @@ function ModuleRefRow({
     ? t('settingPanel.storyDirector.disableModule', { module: label })
     : t('settingPanel.storyDirector.enableModule', { module: label })
   return (
-    <div className={`flex items-center gap-2 rounded px-1.5 py-1 ${enabled ? '' : 'opacity-60'}`}>
-      <span className="w-24 shrink-0 text-[11px] text-[var(--nova-text-faint)]">{label}</span>
+    <div className={`flex min-h-12 items-center gap-2 rounded-lg px-2 py-1.5 ${enabled ? '' : 'opacity-60'}`}>
+      <span className="w-24 shrink-0 text-[11px] text-[var(--nova-text-muted)]">{label}</span>
       <span className="min-w-0 flex-1">
         {children}
         {summary ? <span className="mt-0.5 block truncate text-[10px] text-[var(--nova-text-faint)]" title={summary}>{summary}</span> : null}

@@ -60,7 +60,6 @@ export interface Settings {
   ide_story_teller_id?: string
   ide_image_preset_id?: string
   writing_skill_default?: string
-  interactive_hot_choices_enabled?: boolean | null
   interactive_stage_font_size?: number | null
   interactive_stage_line_height?: number | null
 }
@@ -107,7 +106,6 @@ export interface AgentModelSettings {
   image?: AgentModelOverride
   config_manager?: AgentModelOverride
   interactive_director?: AgentModelOverride
-  interactive_hot_choices?: AgentModelOverride
   version_summary?: AgentModelOverride
   tool_agent?: AgentModelOverride
   automation?: AgentModelOverride
@@ -128,7 +126,6 @@ export interface AgentToolSettings {
   image?: AgentToolOverride
   config_manager?: AgentToolOverride
   interactive_director?: AgentToolOverride
-  interactive_hot_choices?: AgentToolOverride
   version_summary?: AgentToolOverride
   tool_agent?: AgentToolOverride
   automation?: AgentToolOverride
@@ -142,7 +139,6 @@ export interface AgentSkillSettings {
   image?: AgentSkillOverride
   config_manager?: AgentSkillOverride
   interactive_director?: AgentSkillOverride
-  interactive_hot_choices?: AgentSkillOverride
   version_summary?: AgentSkillOverride
   tool_agent?: AgentSkillOverride
   automation?: AgentSkillOverride
@@ -158,7 +154,6 @@ interface AgentContextSettings {
   image?: AgentContextOverride
   config_manager?: AgentContextOverride
   interactive_director?: AgentContextOverride
-  interactive_hot_choices?: AgentContextOverride
   version_summary?: AgentContextOverride
   tool_agent?: AgentContextOverride
   automation?: AgentContextOverride
@@ -218,7 +213,6 @@ interface AgentPromptSettings {
   image?: AgentPromptOverride
   config_manager?: AgentPromptOverride
   interactive_director?: AgentPromptOverride
-  interactive_hot_choices?: AgentPromptOverride
   version_summary?: AgentPromptOverride
   tool_agent?: AgentPromptOverride
   automation?: AgentPromptOverride
@@ -250,7 +244,6 @@ interface AgentPromptSourceSettings {
   image?: AgentPromptSourceList
   config_manager?: AgentPromptSourceList
   interactive_director?: AgentPromptSourceList
-  interactive_hot_choices?: AgentPromptSourceList
   version_summary?: AgentPromptSourceList
   tool_agent?: AgentPromptSourceList
   automation?: AgentPromptSourceList
@@ -270,7 +263,6 @@ interface AgentPromptBlockSettings {
   image?: AgentPromptBlocks
   config_manager?: AgentPromptBlocks
   interactive_director?: AgentPromptBlocks
-  interactive_hot_choices?: AgentPromptBlocks
   version_summary?: AgentPromptBlocks
   tool_agent?: AgentPromptBlocks
   automation?: AgentPromptBlocks

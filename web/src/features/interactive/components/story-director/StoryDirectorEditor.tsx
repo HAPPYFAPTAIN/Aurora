@@ -4,12 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import type { ActorStateModule, EventPackageModule, ImagePreset, OpeningSelectorModule, RuleSystemModule, StoryDirector, StoryDirectorModuleRefs, StoryMemoryStructureModule, Teller } from '../../types'
+import type { ActorStateModule, EventPackageModule, ImagePreset, RuleSystemModule, StoryDirector, StoryDirectorModuleRefs, StoryMemoryStructureModule, Teller } from '../../types'
+import { PresetMetadataPanel } from '../preset-config/PresetEditorChrome'
 import { BooleanSwitchField } from '../setting-panel/BooleanSwitchField'
 import { DirectorModuleConsole } from './ModuleConsole'
-import { consoleSectionClassName, EMPTY_DIRECTOR_PLANNING_TEMPLATES, inputClassName, selectClassName, STORY_DIRECTOR_AGENT_MODE_OPTIONS, STORY_DIRECTOR_BRANCH_PLANNING_TURNS_FALLBACK, STORY_DIRECTOR_FAILURE_OPTIONS, STORY_DIRECTOR_MAINLINE_OPTIONS, STORY_DIRECTOR_PACING_OPTIONS, STORY_DIRECTOR_PLANNING_TEMPLATE_LIMIT, STORY_DIRECTOR_RANDOM_RATE_OPTIONS, STORY_DIRECTOR_STRATEGY_PROMPT_LIMIT, type StrategySelectOption } from './constants'
+import { consoleSectionClassName, EMPTY_DIRECTOR_PLANNING_TEMPLATES, inputClassName, selectClassName, STORY_DIRECTOR_AGENT_MODE_OPTIONS, STORY_DIRECTOR_BRANCH_PLANNING_TURNS_FALLBACK, STORY_DIRECTOR_EVENT_FREQUENCY_OPTIONS, STORY_DIRECTOR_FAILURE_OPTIONS, STORY_DIRECTOR_MAINLINE_OPTIONS, STORY_DIRECTOR_PACING_OPTIONS, STORY_DIRECTOR_PLANNING_TEMPLATE_LIMIT, STORY_DIRECTOR_RULE_STATE_CONSUMPTION_OPTIONS, STORY_DIRECTOR_RULE_VISIBILITY_OPTIONS, STORY_DIRECTOR_STATE_SCHEMA_ADAPTATION_OPTIONS, STORY_DIRECTOR_STRATEGY_PROMPT_LIMIT, type StrategySelectOption } from './constants'
 import { EmptyState, Field, SectionTitle } from './shared'
-import { directorResolvedEventPackages, findById, normalizeBranchPlanningTurns, normalizedStoryDirectorRefs, parseDecimalInput, presetStatusLabel, strategyOptionText, strategyRateValue, utf8ByteLength, validateDirectorPlanningTemplate } from './utils'
+import { directorResolvedEventPackages, findById, normalizeBranchPlanningTurns, normalizedStoryDirectorRefs, presetStatusLabel, strategyOptionText, utf8ByteLength, validateDirectorPlanningTemplate } from './utils'
 
 export function StoryDirectorEditor({
   draft,
@@ -18,11 +19,8 @@ export function StoryDirectorEditor({
   ruleSystems,
   actorStates,
   memoryStructures,
-  openingSelectors,
   imagePresets,
-  tagDraft,
   setDraft,
-  setTagDraft,
   onValidityChange,
 }: {
   draft: StoryDirector | null
@@ -31,11 +29,8 @@ export function StoryDirectorEditor({
   ruleSystems: RuleSystemModule[]
   actorStates: ActorStateModule[]
   memoryStructures: StoryMemoryStructureModule[]
-  openingSelectors: OpeningSelectorModule[]
   imagePresets: ImagePreset[]
-  tagDraft: string
   setDraft: (draft: StoryDirector | null) => void
-  setTagDraft: (value: string) => void
   onValidityChange?: (valid: boolean) => void
 }) {
   const { t } = useTranslation()
@@ -91,12 +86,20 @@ export function StoryDirectorEditor({
   }
   const refs = normalizedStoryDirectorRefs(draft.module_refs)
   const updateModuleRef = <K extends keyof StoryDirectorModuleRefs>(key: K, value: StoryDirectorModuleRefs[K]) => {
+    const nextRefs: StoryDirectorModuleRefs = {
+      ...refs,
+      [key]: value,
+    }
+    if (key === 'rule_system_id') {
+      const selected = ruleSystems.find((item) => item.id === value)
+      if (selected?.actor_state_id) {
+        nextRefs.actor_state_id = selected.actor_state_id
+        nextRefs.actor_state_disabled = false
+      }
+    }
     setDraft({
       ...draft,
-      module_refs: {
-        ...refs,
-        [key]: value,
-      },
+      module_refs: nextRefs,
     })
   }
   const resolvedEventPackages = directorResolvedEventPackages(draft)
@@ -115,30 +118,22 @@ export function StoryDirectorEditor({
   const selectedRuleSystem = findById(ruleSystems, refs.rule_system_id || 'default')
   const selectedActorState = findById(actorStates, refs.actor_state_id || 'default')
   const selectedMemoryStructure = findById(memoryStructures, refs.memory_structure_id || 'default')
-  const selectedOpeningSelector = findById(openingSelectors, refs.opening_selector_id || 'default')
   const selectedImagePreset = findById(imagePresets, refs.image_preset_id || 'game-cg')
   const selectedTeller = findById(tellers, refs.narrative_style_id || 'classic')
 
   return (
-    <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
-      <div className="sticky top-0 z-20 border-b border-[var(--nova-border)] bg-[color-mix(in_srgb,var(--nova-surface)_92%,transparent)] px-4 py-3 backdrop-blur-xl">
-        <div className="grid gap-3 xl:grid-cols-[minmax(180px,1fr)_minmax(260px,1.35fr)_minmax(180px,0.7fr)_auto]">
-          <Field label={t('settingPanel.field.name')}>
-            <Input className={inputClassName} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
-          </Field>
-          <Field label={t('settingPanel.field.description')}>
-            <Input className={inputClassName} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} placeholder={t('settingPanel.placeholder.description')} />
-          </Field>
-          <Field label={t('settingPanel.field.tags')}>
-            <Input className={inputClassName} value={tagDraft} onChange={(event) => setTagDraft(event.target.value)} placeholder={t('settingPanel.placeholder.tags')} />
-          </Field>
-          <div className="flex items-end">
-            <span className="inline-flex h-8 items-center rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-2 text-xs text-[var(--nova-text-faint)]">{presetStatusLabel(draft, t)}</span>
-          </div>
-        </div>
-      </div>
+    <div ref={scrollRef} className="preset-director-editor flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
+      <PresetMetadataPanel
+        name={draft.name}
+        description={draft.description}
+        status={presetStatusLabel(draft, t)}
+        hint={draft.custom ? t('settingPanel.storyDirector.customEditable') : t('settingPanel.storyDirector.builtInCopyHint')}
+        onNameChange={(name) => setDraft({ ...draft, name })}
+        onDescriptionChange={(description) => setDraft({ ...draft, description })}
+        sticky
+      />
 
-      <div className="grid gap-4 p-4">
+      <div className="grid gap-4 p-3 sm:p-4">
         <DirectorModuleConsole
           refs={refs}
           selectedTellerName={selectedTeller?.name || refs.narrative_style_id || 'classic'}
@@ -146,7 +141,6 @@ export function StoryDirectorEditor({
           selectedActorStateName={selectedActorState?.name || refs.actor_state_id || 'default'}
           selectedMemoryStructureCount={selectedMemoryStructure?.structures?.filter((structure) => structure.enabled !== false).length ?? draft.resolved_snapshot?.story_memory_structures?.filter((structure) => structure.enabled !== false).length ?? 0}
           selectedMemoryStructureTotal={selectedMemoryStructure?.structures?.length ?? draft.resolved_snapshot?.story_memory_structures?.length ?? 0}
-          selectedOpeningName={selectedOpeningSelector?.name || refs.opening_selector_id || 'default'}
           selectedImageName={selectedImagePreset?.name || refs.image_preset_id || 'game-cg'}
           selectedEventCardCount={selectedEventCardCount}
           tellers={tellers}
@@ -154,7 +148,6 @@ export function StoryDirectorEditor({
           ruleSystems={ruleSystems}
           actorStates={actorStates}
           memoryStructures={memoryStructures}
-          openingSelectors={openingSelectors}
           imagePresets={imagePresets}
           onModuleRefChange={updateModuleRef}
         />
@@ -175,7 +168,10 @@ export function StoryDirectorEditor({
             description={t('settingPanel.storyDirector.strategyDesc')}
             badge={strategyPrompt.trim() ? t('settingPanel.storyDirector.strategyPromptEnabled') : undefined}
           />
-          <div className="mt-3 grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+          <div
+            className="mt-3 grid gap-3"
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))' }}
+          >
             <BooleanSwitchField label={t('settingPanel.field.enabled')} checked={draft.strategy?.enabled !== false} onCheckedChange={(enabled) => updateStrategy({ enabled })} />
             <StrategySelect
               label={t('settingPanel.storyDirector.agentMode')}
@@ -183,6 +179,27 @@ export function StoryDirectorEditor({
               fallbackValue="triggered"
               options={STORY_DIRECTOR_AGENT_MODE_OPTIONS}
               onChange={(director_agent_mode) => updateStrategy({ director_agent_mode })}
+            />
+            <StrategySelect
+              label={t('settingPanel.storyDirector.stateSchemaAdaptation')}
+              value={draft.strategy?.state_schema_adaptation_mode || ''}
+              fallbackValue="auto"
+              options={STORY_DIRECTOR_STATE_SCHEMA_ADAPTATION_OPTIONS}
+              onChange={(state_schema_adaptation_mode) => updateStrategy({ state_schema_adaptation_mode })}
+            />
+            <StrategySelect
+              label={t('settingPanel.storyDirector.ruleStateConsumption')}
+              value={draft.strategy?.rule_state_consumption_mode || ''}
+              fallbackValue="hybrid_auto"
+              options={STORY_DIRECTOR_RULE_STATE_CONSUMPTION_OPTIONS}
+              onChange={(rule_state_consumption_mode) => updateStrategy({ rule_state_consumption_mode })}
+            />
+            <StrategySelect
+              label={t('settingPanel.storyDirector.ruleVisibility')}
+              value={draft.strategy?.rule_visibility_mode || ''}
+              fallbackValue="audit_only"
+              options={STORY_DIRECTOR_RULE_VISIBILITY_OPTIONS}
+              onChange={(rule_visibility_mode) => updateStrategy({ rule_visibility_mode })}
             />
             <Field label={t('settingPanel.storyDirector.branchPlanningTurns')}>
               <Input
@@ -216,11 +233,12 @@ export function StoryDirectorEditor({
               options={STORY_DIRECTOR_PACING_OPTIONS}
               onChange={(pacing_curve) => updateStrategy({ pacing_curve })}
             />
-            <StrategyRateSelect
-              label={t('settingPanel.field.randomEventRate')}
-              value={draft.strategy?.random_event_rate}
-              fallbackValue="0.15"
-              onChange={(random_event_rate) => updateStrategy({ random_event_rate })}
+			<StrategySelect
+				label={t('settingPanel.storyDirector.eventFrequency')}
+				value={draft.strategy?.event_frequency || ''}
+				fallbackValue="balanced"
+				options={STORY_DIRECTOR_EVENT_FREQUENCY_OPTIONS}
+				onChange={(event_frequency) => updateStrategy({ event_frequency })}
             />
           </div>
 
@@ -236,6 +254,7 @@ export function StoryDirectorEditor({
             {strategyPromptOpen ? (
               <div className="grid gap-2 rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)] p-3">
                 <Textarea
+                  autoResize={false}
                   className="nova-field min-h-40 resize-y text-xs focus-visible:ring-0"
                   value={strategyPrompt}
                   onChange={(event) => updateStrategy({ prompt_markdown: event.target.value })}
@@ -328,28 +347,6 @@ function StrategySelect({
   )
 }
 
-function StrategyRateSelect({
-  label,
-  value,
-  fallbackValue,
-  onChange,
-}: {
-  label: string
-  value: number | undefined
-  fallbackValue: string
-  onChange: (value: number) => void
-}) {
-  return (
-    <StrategySelect
-      label={label}
-      value={strategyRateValue(value, fallbackValue)}
-      fallbackValue={fallbackValue}
-      options={STORY_DIRECTOR_RANDOM_RATE_OPTIONS}
-      onChange={(next) => onChange(parseDecimalInput(next))}
-    />
-  )
-}
-
 function DisclosureButton({
   open,
   title,
@@ -399,6 +396,7 @@ function PlanningTemplateTextarea({ label, value, validity, onChange }: {
         </span>
       </div>
       <Textarea
+        autoResize={false}
         minRows={20}
         className="nova-field min-h-[calc(20*1.25rem+1rem)] resize-y font-mono text-xs leading-5 focus-visible:ring-0"
         value={value}

@@ -207,17 +207,16 @@ export const ComposerTokenInput = forwardRef<ComposerTokenInputHandle, ComposerT
 
   useEffect(() => {
     disabledRef.current = disabled
-    editor?.setEditable(!disabled)
-    const dom = editor?.view.dom
-    if (dom) {
-      dom.setAttribute('aria-disabled', disabled ? 'true' : 'false')
-      if (disabled) dom.setAttribute('contenteditable', 'false')
-    }
+    if (!editor || editor.isDestroyed) return
+    editor.setEditable(!disabled)
+    const dom = editor.view.dom
+    dom.setAttribute('aria-disabled', disabled ? 'true' : 'false')
+    if (disabled) dom.setAttribute('contenteditable', 'false')
   }, [disabled, editor])
 
   useEffect(() => {
-    const dom = editor?.view.dom
-    if (!dom) return
+    if (!editor || editor.isDestroyed) return
+    const dom = editor.view.dom
     dom.setAttribute('rows', String(rows))
     dom.setAttribute('placeholder', placeholder)
     if (inputMode) dom.setAttribute('inputmode', inputMode)
@@ -229,7 +228,7 @@ export const ComposerTokenInput = forwardRef<ComposerTokenInputHandle, ComposerT
   }, [autoCapitalize, editor, enterKeyHint, inputMode, placeholder, rows])
 
   useEffect(() => {
-    if (!editor) return
+    if (!editor || editor.isDestroyed) return
     const current = serializeComposerDoc(editor.state.doc)
     if (current === value) {
       setEmpty(value.length === 0)

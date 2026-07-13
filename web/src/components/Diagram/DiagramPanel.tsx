@@ -28,7 +28,7 @@ const PRESETS: PresetItem[] = [
 let mermaidInitialized = false
 function ensureMermaidInit(theme: 'dark' | 'light') {
   if (mermaidInitialized) return
-  mermaid.initialize({ startOnLoad: false, theme, securityLevel: 'loose', fontFamily: 'inherit' })
+  mermaid.initialize({ startOnLoad: false, theme: theme === 'dark' ? 'dark' : 'default', securityLevel: 'loose', fontFamily: 'inherit' })
   mermaidInitialized = true
 }
 

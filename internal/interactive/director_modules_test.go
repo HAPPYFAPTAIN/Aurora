@@ -1,6 +1,8 @@
 package interactive
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -71,12 +73,202 @@ func TestEventPackageLibraryMaterializesGenreBuiltins(t *testing.T) {
 	}
 }
 
+func TestActorStateLibraryMaterializesGenreBuiltins(t *testing.T) {
+	novaDir := t.TempDir()
+	library := NewActorStateLibrary(novaDir)
+	items, err := library.List()
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	wantIDs := []string{
+		DefaultActorStateModuleID,
+		ActorStateXiuxianID,
+		ActorStateWesternFantasyID,
+		ActorStateApocalypseID,
+		ActorStateInfiniteFlowID,
+	}
+	byID := map[string]ActorStateModule{}
+	for _, item := range items {
+		byID[item.ID] = item
+	}
+	for index, id := range wantIDs {
+		item, ok := byID[id]
+		if !ok {
+			t.Fatalf("missing built-in actor state %s in %#v", id, items)
+		}
+		if item.Custom || !IsBuiltinActorStateID(id) {
+			t.Fatalf("actor state %s should be built-in: %#v", id, item)
+		}
+		if items[index].ID != id {
+			t.Fatalf("built-in actor state order mismatch at %d: got %s want %s; items=%#v", index, items[index].ID, id, items)
+		}
+		requireActorStateTemplates(t, item, "protagonist", ActorStateStoryContextTemplateID, ActorStateImportantCharacterTemplateID, ActorStateOpponentTemplateID)
+		if len(item.ActorState.InitialActors) != 2 ||
+			item.ActorState.InitialActors[0].ID != DefaultActorID ||
+			item.ActorState.InitialActors[0].TemplateID != "protagonist" ||
+			item.ActorState.InitialActors[1].ID != DefaultStoryContextActorID ||
+			item.ActorState.InitialActors[1].TemplateID != ActorStateStoryContextTemplateID {
+			t.Fatalf("actor state %s should ship starter protagonist and story context state objects: %#v", id, item.ActorState.InitialActors)
+		}
+		requireNoActorStateFieldBounds(t, item)
+	}
+
+	defaultActorState, err := library.Get(DefaultActorStateModuleID)
+	if err != nil {
+		t.Fatalf("Get default actor state failed: %v", err)
+	}
+	if !actorStateTemplateHasField(defaultActorState, "protagonist", "current.body_status") ||
+		!actorStateTemplateHasField(defaultActorState, ActorStateStoryContextTemplateID, "scene.current_event") ||
+		!actorStateTemplateHasField(defaultActorState, ActorStateImportantCharacterTemplateID, "relationship.attitude_to_protagonist") ||
+		!actorStateTemplateHasField(defaultActorState, ActorStateOpponentTemplateID, "threat.status") {
+		t.Fatalf("default actor state should expose generic protagonist, story-context, important-character, and opponent fields: %#v", defaultActorState.ActorState.Templates)
+	}
+
+	xiuxian, err := library.Get(ActorStateXiuxianID)
+	if err != nil {
+		t.Fatalf("Get xiuxian preset failed: %v", err)
+	}
+	if xiuxian.Name != "修仙状态系统" || !actorStateTemplateHasField(xiuxian, "protagonist", "cultivation.realm") {
+		t.Fatalf("xiuxian actor state should expose cultivation protagonist fields: %#v", xiuxian)
+	}
+	xiuxian.Name = "我的修仙状态系统"
+	overridden, err := library.Update(ActorStateXiuxianID, xiuxian, xiuxian.UpdatedAt)
+	if err != nil {
+		t.Fatalf("Update built-in xiuxian actor state should create override: %v", err)
+	}
+	if overridden.Custom || !overridden.BuiltinOverridden || overridden.Name != "我的修仙状态系统" {
+		t.Fatalf("unexpected xiuxian actor state override: %#v", overridden)
+	}
+	if err := library.Delete(ActorStateXiuxianID); err != nil {
+		t.Fatalf("Delete built-in xiuxian actor state should restore builtin: %v", err)
+	}
+	restored, err := library.Get(ActorStateXiuxianID)
+	if err != nil {
+		t.Fatalf("Get restored xiuxian preset failed: %v", err)
+	}
+	if restored.Custom || restored.BuiltinOverridden || restored.Name == "我的修仙状态系统" || !actorStateTemplateHasField(restored, ActorStateOpponentTemplateID, "cultivation.realm_pressure") {
+		t.Fatalf("unexpected restored xiuxian actor state: %#v", restored)
+	}
+
+	resolved := ResolveStoryDirectorModules(novaDir, StoryDirector{
+		ID:   "genre-director",
+		Name: "题材导演",
+		ModuleRefs: StoryDirectorModuleRefs{
+			NarrativeStyleDisabled:  true,
+			EventPackagesDisabled:   true,
+			RuleSystemDisabled:      true,
+			ActorStateID:            ActorStateInfiniteFlowID,
+			MemoryStructureDisabled: true,
+			OpeningSelectorDisabled: true,
+			ImagePresetDisabled:     true,
+		},
+	})
+	if !actorStateTemplateHasField(ActorStateModule{ActorState: resolved.ActorState}, ActorStateOpponentTemplateID, "rules.triggers") {
+		t.Fatalf("director should resolve infinite-flow actor state templates: %#v", resolved.ActorState)
+	}
+}
+
+func TestActorStateModuleMigratesOpeningSelectorIntoTraitLibrary(t *testing.T) {
+	novaDir := t.TempDir()
+	actorStateLibrary := NewActorStateLibrary(novaDir)
+	module, err := actorStateLibrary.Create(ActorStateModule{
+		ID:          "state-with-opening",
+		Name:        "带开局词条的状态系统",
+		Description: "验证开局词条归属状态系统。",
+		ActorState:  defaultActorStateSystem(),
+		OpeningSelector: StoryDirectorOpeningSelector{
+			Enabled: true,
+			InitialStateOps: []StateOp{{
+				Op:    "set",
+				Path:  "rules.opening_origin",
+				Value: "state-system",
+			}},
+			TraitPools: []OpeningTraitPool{{
+				ID:        "talent",
+				Name:      "天赋",
+				DrawCount: 1,
+				Traits: []OpeningTrait{{
+					ID:      "clear-mind",
+					Name:    "澄心",
+					Summary: "开局精神状态更稳定。",
+					Ops: []StateOp{{
+						Op:    "set",
+						Path:  "actors.protagonist.state.current.mental_status",
+						Value: "澄明稳定",
+					}},
+				}},
+			}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create actor state with opening failed: %v", err)
+	}
+	if len(module.OpeningSelector.TraitPools) != 0 || len(module.OpeningSelector.InitialStateOps) != 0 {
+		t.Fatalf("opening selector should be cleared after migration: %#v", module.OpeningSelector)
+	}
+	if len(module.ActorState.TraitPools) != 1 || module.ActorState.TraitPools[0].ID != "talent" {
+		t.Fatalf("legacy traits should migrate into actor state trait pools: %#v", module.ActorState.TraitPools)
+	}
+	protagonist := actorStateTemplateByID(module.ActorState, DefaultActorID)
+	if len(protagonist.TraitRules) != 1 || protagonist.TraitRules[0].PoolID != "talent" || protagonist.TraitRules[0].DrawCount != 1 {
+		t.Fatalf("legacy draw count should become protagonist template rule: %#v", protagonist.TraitRules)
+	}
+	if len(module.MigrationWarnings) < 2 {
+		t.Fatalf("discarded legacy StateOps should be reported: %#v", module.MigrationWarnings)
+	}
+
+	director := ResolveStoryDirectorModules(novaDir, StoryDirector{
+		ID:   "opening-from-state",
+		Name: "开局归属状态系统",
+		ModuleRefs: StoryDirectorModuleRefs{
+			NarrativeStyleDisabled:  true,
+			EventPackagesDisabled:   true,
+			RuleSystemDisabled:      true,
+			ActorStateID:            module.ID,
+			MemoryStructureDisabled: true,
+			ImagePresetDisabled:     true,
+		},
+	})
+	if len(director.ActorState.TraitPools) != 1 || director.ActorState.TraitPools[0].ID != "talent" {
+		t.Fatalf("director should resolve the trait library from actor state module: %#v", director.ActorState)
+	}
+	if director.ModuleRefs.OpeningSelectorID != "" {
+		t.Fatalf("new director refs should not need opening_selector_id: %#v", director.ModuleRefs)
+	}
+	roll, err := RollActorTraits(director.ActorState, ActorTraitRollRequest{
+		ActorID:    DefaultActorID,
+		TemplateID: DefaultActorID,
+		Seed:       7,
+	})
+	if err != nil {
+		t.Fatalf("roll actor traits failed: %v", err)
+	}
+	if len(roll.Traits) != 1 || roll.Traits[0].TraitID != "clear-mind" {
+		t.Fatalf("actor roll should use state-system traits: %#v", roll.Traits)
+	}
+	if containsStateOp(StoryDirectorInitialStateOps(director), "rules.opening_origin", "state-system") || containsStateOp(StoryDirectorInitialStateOps(director), "actors.protagonist.state.current.mental_status", "澄明稳定") {
+		t.Fatalf("legacy arbitrary StateOps must not execute: %#v", StoryDirectorInitialStateOps(director))
+	}
+}
+
 func TestDirectorModuleBuiltinOverridesRestore(t *testing.T) {
 	novaDir := t.TempDir()
 	ruleLibrary := NewRuleSystemLibrary(novaDir)
 	rule, err := ruleLibrary.Get(DefaultRuleSystemID)
 	if err != nil {
 		t.Fatal(err)
+	}
+	ruleSystems, err := ruleLibrary.List()
+	if err != nil {
+		t.Fatalf("List built-in rule systems failed: %v", err)
+	}
+	if len(ruleSystems) < 7 {
+		t.Fatalf("expected multiple built-in DM style rule systems, got %#v", ruleSystems)
+	}
+	for _, item := range ruleSystems {
+		if IsBuiltinRuleSystemID(item.ID) && (item.Custom || item.BuiltinOverridden || len(item.TRPGSystem.RuleTemplates) != 1) {
+			t.Fatalf("built-in rule system should be a single non-overridden config: %#v", item)
+		}
 	}
 	rule.Name = "我的 TRPG 检定"
 	overriddenRule, err := ruleLibrary.Update(DefaultRuleSystemID, rule, rule.UpdatedAt)
@@ -95,6 +287,28 @@ func TestDirectorModuleBuiltinOverridesRestore(t *testing.T) {
 	}
 	if restoredRule.Custom || restoredRule.BuiltinOverridden || restoredRule.Name == "我的 TRPG 检定" {
 		t.Fatalf("unexpected restored rule system: %#v", restoredRule)
+	}
+	styleRule, err := ruleLibrary.Get(RuleSystemOSRPlayerSkillID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	styleRule.Name = "我的 OSR 检定"
+	overriddenStyleRule, err := ruleLibrary.Update(RuleSystemOSRPlayerSkillID, styleRule, styleRule.UpdatedAt)
+	if err != nil {
+		t.Fatalf("Update built-in style rule system should create override: %v", err)
+	}
+	if overriddenStyleRule.Custom || !overriddenStyleRule.BuiltinOverridden || overriddenStyleRule.Name != "我的 OSR 检定" {
+		t.Fatalf("unexpected style rule override: %#v", overriddenStyleRule)
+	}
+	if err := ruleLibrary.Delete(RuleSystemOSRPlayerSkillID); err != nil {
+		t.Fatalf("Delete style rule override should restore builtin: %v", err)
+	}
+	restoredStyleRule, err := ruleLibrary.Get(RuleSystemOSRPlayerSkillID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restoredStyleRule.Custom || restoredStyleRule.BuiltinOverridden || restoredStyleRule.Name == "我的 OSR 检定" || len(restoredStyleRule.TRPGSystem.RuleTemplates) != 1 {
+		t.Fatalf("unexpected restored style rule system: %#v", restoredStyleRule)
 	}
 
 	actorLibrary := NewActorStateLibrary(novaDir)
@@ -170,12 +384,133 @@ func TestDirectorModuleBuiltinOverridesRestore(t *testing.T) {
 	}
 }
 
-func TestDirectorEventCatalogPrioritizesConfiguredEventCardsBeforeDefaults(t *testing.T) {
+func TestStoryMemoryStructureBuiltinRefreshesWhenNotOverridden(t *testing.T) {
+	novaDir := t.TempDir()
+	library := NewStoryMemoryStructureLibrary(novaDir)
+	if err := os.MkdirAll(library.dir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(library.dir(), DefaultStoryMemoryStructureModuleID+".json")
+	stale := DefaultStoryMemoryStructureModule()
+	for i := range stale.Structures {
+		if stale.Structures[i].ID == "current_state" {
+			stale.Structures[i].Description = "旧版当前状态说明"
+			stale.Structures[i].Enabled = boolPtr(true)
+			break
+		}
+	}
+	if err := writeStoryMemoryStructureFile(path, stale); err != nil {
+		t.Fatal(err)
+	}
+	refreshed, err := library.Get(DefaultStoryMemoryStructureModuleID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	currentState := storyMemoryStructureByID(refreshed.Structures, "current_state")
+	if strings.Contains(currentState.Description, "旧版当前状态说明") || storyMemoryStructureEnabled(currentState) {
+		t.Fatalf("non-overridden built-in memory structure should refresh to current defaults: %#v", currentState)
+	}
+
+	overridden := DefaultStoryMemoryStructureModule()
+	overridden.BuiltinOverridden = true
+	overridden.Name = "用户覆盖的默认记忆结构"
+	for i := range overridden.Structures {
+		if overridden.Structures[i].ID == "current_state" {
+			overridden.Structures[i].Description = "用户覆盖当前状态说明"
+			overridden.Structures[i].Enabled = boolPtr(true)
+			break
+		}
+	}
+	if err := writeStoryMemoryStructureFile(path, overridden); err != nil {
+		t.Fatal(err)
+	}
+	kept, err := library.Get(DefaultStoryMemoryStructureModuleID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	currentState = storyMemoryStructureByID(kept.Structures, "current_state")
+	if kept.Name != "用户覆盖的默认记忆结构" || !strings.Contains(currentState.Description, "用户覆盖当前状态说明") || !storyMemoryStructureEnabled(currentState) {
+		t.Fatalf("overridden built-in memory structure should be preserved: module=%#v current_state=%#v", kept, currentState)
+	}
+}
+
+func requireActorStateTemplates(t *testing.T, item ActorStateModule, ids ...string) {
+	t.Helper()
+	templates := map[string]bool{}
+	for _, template := range item.ActorState.Templates {
+		templates[template.ID] = true
+	}
+	for _, id := range ids {
+		if !templates[id] {
+			t.Fatalf("actor state %s missing template %s: %#v", item.ID, id, item.ActorState.Templates)
+		}
+	}
+}
+
+func requireNoActorStateFieldBounds(t *testing.T, item ActorStateModule) {
+	t.Helper()
+	for _, template := range item.ActorState.Templates {
+		for _, field := range template.Fields {
+			if field.Min != nil || field.Max != nil {
+				t.Fatalf("genre actor state %s field %s should not define min/max: %#v", item.ID, field.Path, field)
+			}
+		}
+	}
+}
+
+func actorStateTemplateHasField(item ActorStateModule, templateID, fieldPath string) bool {
+	for _, template := range item.ActorState.Templates {
+		if template.ID != templateID {
+			continue
+		}
+		for _, field := range template.Fields {
+			if field.Path == fieldPath {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func TestParseLegacyRuleSystemKeepsSingleCheck(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy.json")
+	if err := os.WriteFile(path, []byte(`{
+  "id": "legacy-rules",
+  "name": "旧 TRPG 检定",
+  "trpg_system": {
+    "rule_templates": [
+      {
+        "id": "first-rule",
+        "label": "第一条旧规则",
+        "dice": "1d20",
+        "failure_policy": "fail_forward"
+      },
+      {
+        "id": "second-rule",
+        "label": "第二条旧规则",
+        "dice": "1d100",
+        "failure_policy": "hard_failure"
+      }
+    ]
+  }
+}`), 0o644); err != nil {
+		t.Fatalf("write legacy rule system failed: %v", err)
+	}
+
+	item, err := parseRuleSystemFile(path)
+	if err != nil {
+		t.Fatalf("parse legacy rule system failed: %v", err)
+	}
+	if len(item.TRPGSystem.RuleTemplates) != 1 || item.TRPGSystem.RuleTemplates[0].ID != "first-rule" {
+		t.Fatalf("legacy rule system should keep one check config: %#v", item.TRPGSystem.RuleTemplates)
+	}
+}
+
+func TestDirectorEventCatalogUsesOnlyExplicitConfiguredEventCards(t *testing.T) {
 	module := builtinGenreEventPackageModule(
 		"test-pack",
 		"测试事件包",
 		"用于验证事件目录顺序。",
-		nil,
 		urbanEventCards(),
 	)
 	director := normalizeStoryDirector(StoryDirector{
@@ -188,16 +523,17 @@ func TestDirectorEventCatalogPrioritizesConfiguredEventCardsBeforeDefaults(t *te
 
 	catalog := DirectorEventCatalogFromStoryDirector(director)
 	packCards := module.Events
-	if len(catalog) != maxTurnBriefListItems {
-		t.Fatalf("catalog should still be filled to the bounded default size, got %d: %#v", len(catalog), catalog)
+	if len(catalog) != len(packCards) {
+		t.Fatalf("catalog should contain exactly the selected package cards, got %d: %#v", len(catalog), catalog)
 	}
 	for i, card := range packCards {
-		if catalog[i].ID != card.ID {
-			t.Fatalf("configured event cards should be first, index %d got %s want %s in %#v", i, catalog[i].ID, card.ID, catalog)
+		wantRef := module.ID + "/" + card.ID
+		if catalog[i].ID != wantRef {
+			t.Fatalf("configured event card refs should be namespaced, index %d got %s want %s in %#v", i, catalog[i].ID, wantRef, catalog)
 		}
 	}
-	if !directorEventQueued(catalog, "face_slap") {
-		t.Fatalf("default templates should fill remaining catalog slots: %#v", catalog)
+	if directorEventQueued(catalog, "face_slap") {
+		t.Fatalf("unselected default templates must not leak into catalog: %#v", catalog)
 	}
 }
 
@@ -227,13 +563,13 @@ func TestStoryDirectorResolvesLiveModulesAndFallsBackToSnapshot(t *testing.T) {
 		ID:   "survival-rules",
 		Name: "生存 TRPG 检定",
 		TRPGSystem: StoryDirectorTRPGSystem{RuleTemplates: []RuleCheck{{
-			ID:                "heat-check",
-			Label:             "耐热检定",
-			Category:          "endurance",
-			DefaultDifficulty: "hard",
-			DefaultRollMode:   "normal",
-			FailurePolicy:     "success_at_cost",
-			Impact:            "stamina_cost",
+			ID:                  "heat-check",
+			Label:               "耐热检定",
+			Dice:                "1d20",
+			Modifier:            5,
+			FailurePolicy:       "success_at_cost",
+			DifficultyGuidance:  "高温、缺水或负重时提高难度。",
+			StateEffectGuidance: "失败可扣减体力并增加中暑风险。",
 		}}},
 	})
 	if err != nil {
@@ -280,22 +616,15 @@ func TestStoryDirectorResolvesLiveModulesAndFallsBackToSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create memory structure failed: %v", err)
 	}
-	openingModule, err := openingLibrary.Create(OpeningSelectorModule{
+	if _, err := openingLibrary.Create(OpeningSelectorModule{
 		ID:   "wasteland-openings",
-		Name: "废土开局",
-		OpeningSelector: StoryDirectorOpeningSelector{
-			Enabled: true,
-			InitialStateOps: []StateOp{{
-				Op:    "set",
-				Path:  "flags.wasteland",
-				Value: true,
-			}},
-		},
-	})
-	if err != nil {
-		t.Fatalf("create opening selector failed: %v", err)
+		Name: "旧废土开局",
+		OpeningSelector: StoryDirectorOpeningSelector{Enabled: true, InitialStateOps: []StateOp{{
+			Op: "set", Path: "flags.wasteland", Value: true,
+		}}},
+	}); err != nil {
+		t.Fatalf("create legacy opening selector file failed: %v", err)
 	}
-
 	director, err := directorLibrary.Create(StoryDirector{
 		ID:   "modular",
 		Name: "模块化导演",
@@ -305,7 +634,7 @@ func TestStoryDirectorResolvesLiveModulesAndFallsBackToSnapshot(t *testing.T) {
 			RuleSystemID:      ruleModule.ID,
 			ActorStateID:      actorModule.ID,
 			MemoryStructureID: memoryModule.ID,
-			OpeningSelectorID: openingModule.ID,
+			OpeningSelectorID: "wasteland-openings",
 			ImagePresetID:     "game-cg",
 		},
 		Strategy: StoryDirectorStrategy{Enabled: true},
@@ -325,8 +654,11 @@ func TestStoryDirectorResolvesLiveModulesAndFallsBackToSnapshot(t *testing.T) {
 	if len(director.ResolvedSnapshot.StoryMemoryStructures) != 1 || director.ResolvedSnapshot.StoryMemoryStructures[0].ID != "camp" {
 		t.Fatalf("director should resolve memory structure module on create: %#v", director.ResolvedSnapshot.StoryMemoryStructures)
 	}
-	if !containsStateOp(director.OpeningSelector.InitialStateOps, "flags.wasteland", true) {
-		t.Fatalf("director should resolve opening module on create: %#v", director.OpeningSelector.InitialStateOps)
+	if len(director.OpeningSelector.InitialStateOps) != 0 || len(director.OpeningSelector.TraitPools) != 0 {
+		t.Fatalf("standalone opening selectors must not be loaded: %#v", director.OpeningSelector)
+	}
+	if director.ModuleRefs.OpeningSelectorID != "" {
+		t.Fatalf("legacy standalone opening selector refs should be discarded: %#v", director.ModuleRefs)
 	}
 
 	eventModule.Events[0].DescriptionMarkdown = "v2"
@@ -404,13 +736,12 @@ func TestStoryDirectorDisabledModulesStayDetached(t *testing.T) {
 				}},
 			}},
 			TRPGSystem: StoryDirectorTRPGSystem{RuleTemplates: []RuleCheck{{
-				ID:                "snapshot-rule",
-				Label:             "旧快照规则",
-				Category:          "generic_action",
-				DefaultDifficulty: "easy",
-				DefaultRollMode:   "normal",
-				FailurePolicy:     "fail_forward",
-				Impact:            "none",
+				ID:                  "snapshot-rule",
+				Label:               "旧快照规则",
+				Dice:                "1d20",
+				FailurePolicy:       "fail_forward",
+				DifficultyGuidance:  "快照难度说明。",
+				StateEffectGuidance: "快照状态说明。",
 			}}},
 			ActorState: StoryDirectorActorStateSystem{
 				Templates: []ActorStateTemplate{{ID: "snapshot-template", Name: "旧状态模板"}},

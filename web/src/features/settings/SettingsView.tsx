@@ -55,7 +55,6 @@ const TRACE_CAPTURE_OPTIONS = [
 ] as const
 const TRACE_EXPORTER_OPTIONS = [
   { value: 'local', labelKey: 'settings.debug.traceExporterLocal' },
-  { value: 'otlp', labelKey: 'settings.debug.traceExporterOTLP' },
 ] as const
 let nextSettingsEventSourceID = 1
 
@@ -591,25 +590,15 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
       group: t('settings.group.interactive'),
       title: t('settings.section.interactive'),
       children: activeLayer === 'workspace' ? (
-        <>
-          <BoolTri label={t('settings.interactive.hotChoices')} value={draft.interactive_hot_choices_enabled ?? null}
-                   effective={effective.interactive_hot_choices_enabled}
-                   onChange={(v) => setField('interactive_hot_choices_enabled', v)} />
-          <Num label={t('settings.interactive.lineHeight')} value={draft.interactive_stage_line_height ?? null}
-               placeholder={placeholderFor('interactive_stage_line_height')}
-               step={0.05}
-               onChange={(v) => setField('interactive_stage_line_height', v)} />
-        </>
+        <Num label={t('settings.interactive.lineHeight')} value={draft.interactive_stage_line_height ?? null}
+             placeholder={placeholderFor('interactive_stage_line_height')}
+             step={0.05}
+             onChange={(v) => setField('interactive_stage_line_height', v)} />
       ) : (
-        <>
-          <BoolTri label={t('settings.interactive.hotChoices')} value={draft.interactive_hot_choices_enabled ?? null}
-                   effective={effective.interactive_hot_choices_enabled}
-                   onChange={(v) => setField('interactive_hot_choices_enabled', v)} />
-          <Num label={t('settings.interactive.lineHeight')} value={draft.interactive_stage_line_height ?? null}
-               placeholder={placeholderFor('interactive_stage_line_height')}
-               step={0.05}
-               onChange={(v) => setField('interactive_stage_line_height', v)} />
-        </>
+        <Num label={t('settings.interactive.lineHeight')} value={draft.interactive_stage_line_height ?? null}
+             placeholder={placeholderFor('interactive_stage_line_height')}
+             step={0.05}
+             onChange={(v) => setField('interactive_stage_line_height', v)} />
       ),
     },
   ]
@@ -1203,12 +1192,13 @@ function TraceExporterSelect({ label, value, effective, onChange }: {
   onChange: (v: string) => void
 }) {
   const { t } = useTranslation()
-  const effectiveValue = effective || 'local'
+  const effectiveValue = TRACE_EXPORTER_OPTIONS.some((option) => option.value === effective) ? effective || 'local' : 'local'
+  const selectedValue = TRACE_EXPORTER_OPTIONS.some((option) => option.value === value) ? value || '' : ''
   const effectiveLabel = t(TRACE_EXPORTER_OPTIONS.find((option) => option.value === effectiveValue)?.labelKey || 'settings.debug.traceExporterLocal')
   return (
     <FieldRow label={label}>
       <select
-        value={value ?? ''}
+        value={selectedValue}
         onChange={(e) => onChange(e.target.value)}
         className={fieldCls}
       >

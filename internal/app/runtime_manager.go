@@ -98,6 +98,7 @@ func (s *WorkspaceRuntimeManager) SwitchWorkspace(ctx context.Context, path stri
 	if err != nil {
 		return "", err
 	}
+	a.stopWorkspaceDirectorTasks()
 
 	a.mu.Lock()
 	a.applyRuntime(runtime)
@@ -210,6 +211,7 @@ func (s *WorkspaceRuntimeManager) activateFallbackWorkspace(ctx context.Context)
 		}
 		log.Printf("[books] 切换删除后的备用书籍失败 path=%s err=%v", record.Path, err)
 	}
+	a.stopWorkspaceDirectorTasks()
 	a.mu.Lock()
 	a.clearRuntime()
 	a.mu.Unlock()
@@ -632,9 +634,6 @@ func applyLayeredSettingsToConfig(cfg *config.Config, layered config.LayeredSett
 	if effective.ChapterGroupMax != nil {
 		cfg.ChapterGroupMax = appSettingsInt(effective.ChapterGroupMax, 8)
 	}
-	if effective.InteractiveHotChoices != nil {
-		cfg.InteractiveHotChoices = *effective.InteractiveHotChoices
-	}
 	if effective.VersionTimedEnabled != nil {
 		cfg.VersionTimedEnabled = *effective.VersionTimedEnabled
 	}
@@ -746,9 +745,6 @@ func applySettingsLayerToConfig(cfg *config.Config, settings config.Settings) {
 	}
 	if settings.ChapterGroupMax != nil {
 		cfg.ChapterGroupMax = appSettingsInt(settings.ChapterGroupMax, 8)
-	}
-	if settings.InteractiveHotChoices != nil {
-		cfg.InteractiveHotChoices = *settings.InteractiveHotChoices
 	}
 	if settings.VersionTimedEnabled != nil {
 		cfg.VersionTimedEnabled = *settings.VersionTimedEnabled

@@ -1,12 +1,20 @@
 import { fetchAPI, jsonHeaders, parseSSEStream, readErrorMessage, requestJSON } from '@/lib/api-client'
 import type { ContextAnalysis, InteractiveImage } from '@/lib/api-client'
-import type { ActorStateModule, BranchSummary, DirectorPlan, DirectorPlanStatus, EventPackageModule, HotChoicesResponse, ImagePreset, InteractiveSSEEvent, OpeningRollRequest, OpeningRollResult, OpeningSelectorModule, RuleResolution, RuleResolutionRerollInput, RuleSystemModule, Snapshot, StateOp, StoryDirector, StoryMemoryStructureModule, StyleReference, StyleReferenceFileDocument, StoryImageSettings, StoryIndex, StoryMemoryRecord, StoryMemorySettings, StoryMemoryState, StoryOpeningConfig, StorySummary, Teller, UpdateDirectorPlanInput } from './types'
+import type { ActorStateModule, ActorTraitRollRequest, ActorTraitRollResult, BranchSummary, DirectorPlan, DirectorPlanStatus, EventPackageModule, ImagePreset, InitialActorTraitRoll, InteractiveSSEEvent, RuleResolution, RuleResolutionRerollInput, RuleSystemModule, Snapshot, StoryDirector, StoryMemoryStructureModule, StyleReference, StyleReferenceFileDocument, StoryImageSettings, StoryIndex, StoryMemoryRecord, StoryMemorySettings, StoryMemoryState, StoryOpeningConfig, StorySummary, Teller, UpdateDirectorPlanInput } from './types'
+
+function presetMutationBody<T extends object>(input: T, baseRevision?: string, workspace?: string) {
+  return {
+    ...input,
+    ...(baseRevision ? { base_revision: baseRevision } : {}),
+    ...(workspace ? { workspace } : {}),
+  }
+}
 
 export function getInteractiveStories(): Promise<StoryIndex> {
   return requestJSON('/api/interactive/stories')
 }
 
-export function createInteractiveStory(input: { title: string; origin?: string; story_teller_id: string; story_director_id?: string; reply_target_chars?: number; image_settings?: StoryImageSettings; opening?: StoryOpeningConfig; initial_state_ops?: StateOp[] }): Promise<StorySummary> {
+export function createInteractiveStory(input: { title: string; origin?: string; story_teller_id: string; story_director_id?: string; reply_target_chars?: number; image_settings?: StoryImageSettings; opening?: StoryOpeningConfig; initial_trait_rolls?: InitialActorTraitRoll[] }): Promise<StorySummary> {
   return requestJSON('/api/interactive/stories', {
     method: 'POST',
     headers: jsonHeaders,
@@ -14,8 +22,8 @@ export function createInteractiveStory(input: { title: string; origin?: string; 
   })
 }
 
-export function rollInteractiveOpening(input: OpeningRollRequest): Promise<OpeningRollResult> {
-  return requestJSON('/api/interactive/opening/roll', {
+export function rollInteractiveActorTraits(input: ActorTraitRollRequest): Promise<ActorTraitRollResult> {
+  return requestJSON('/api/interactive/actor-traits/roll', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify(input),
@@ -72,19 +80,19 @@ export function updateInteractiveDirector(storyId: string, input: UpdateDirector
   })
 }
 
-export function rebuildInteractiveDirector(storyId: string, branchId?: string): Promise<DirectorPlan> {
+export function rebuildInteractiveDirector(storyId: string, branchId?: string, options: { resetEvents?: boolean } = {}): Promise<DirectorPlan> {
   return requestJSON(`/api/interactive/stories/${encodeURIComponent(storyId)}/director/rebuild`, {
     method: 'POST',
     headers: jsonHeaders,
-    body: JSON.stringify({ branch_id: branchId }),
+		body: JSON.stringify({ branch_id: branchId, ...(options.resetEvents ? { reset_events: true } : {}) }),
   })
 }
 
-export function runInteractiveDirector(storyId: string, branchId?: string): Promise<DirectorPlanStatus> {
+export function runInteractiveDirector(storyId: string, branchId?: string, options: { forceEventEvaluation?: boolean } = {}): Promise<DirectorPlanStatus> {
   return requestJSON(`/api/interactive/stories/${encodeURIComponent(storyId)}/director/run`, {
     method: 'POST',
     headers: jsonHeaders,
-    body: JSON.stringify({ branch_id: branchId }),
+		body: JSON.stringify({ branch_id: branchId, ...(options.forceEventEvaluation ? { force_event_evaluation: true } : {}) }),
   })
 }
 
@@ -163,11 +171,11 @@ export function createInteractiveTeller(input: Partial<Teller>): Promise<Teller>
   })
 }
 
-export function updateInteractiveTeller(id: string, input: Partial<Teller>, baseRevision?: string): Promise<Teller> {
+export function updateInteractiveTeller(id: string, input: Partial<Teller>, baseRevision?: string, workspace?: string): Promise<Teller> {
   return requestJSON(`/api/interactive/tellers/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: jsonHeaders,
-    body: JSON.stringify(baseRevision ? { ...input, base_revision: baseRevision } : input),
+    body: JSON.stringify(presetMutationBody(input, baseRevision, workspace)),
   })
 }
 
@@ -215,11 +223,11 @@ export function createStoryDirector(input: Partial<StoryDirector>): Promise<Stor
   })
 }
 
-export function updateStoryDirector(id: string, input: Partial<StoryDirector>, baseRevision?: string): Promise<StoryDirector> {
+export function updateStoryDirector(id: string, input: Partial<StoryDirector>, baseRevision?: string, workspace?: string): Promise<StoryDirector> {
   return requestJSON(`/api/story-directors/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: jsonHeaders,
-    body: JSON.stringify(baseRevision ? { ...input, base_revision: baseRevision } : input),
+    body: JSON.stringify(presetMutationBody(input, baseRevision, workspace)),
   })
 }
 
@@ -242,11 +250,11 @@ export function createEventPackage(input: Partial<EventPackageModule>): Promise<
   })
 }
 
-export function updateEventPackage(id: string, input: Partial<EventPackageModule>, baseRevision?: string): Promise<EventPackageModule> {
+export function updateEventPackage(id: string, input: Partial<EventPackageModule>, baseRevision?: string, workspace?: string): Promise<EventPackageModule> {
   return requestJSON(`/api/event-packages/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: jsonHeaders,
-    body: JSON.stringify(baseRevision ? { ...input, base_revision: baseRevision } : input),
+    body: JSON.stringify(presetMutationBody(input, baseRevision, workspace)),
   })
 }
 
@@ -269,11 +277,11 @@ export function createRuleSystem(input: Partial<RuleSystemModule>): Promise<Rule
   })
 }
 
-export function updateRuleSystem(id: string, input: Partial<RuleSystemModule>, baseRevision?: string): Promise<RuleSystemModule> {
+export function updateRuleSystem(id: string, input: Partial<RuleSystemModule>, baseRevision?: string, workspace?: string): Promise<RuleSystemModule> {
   return requestJSON(`/api/rule-systems/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: jsonHeaders,
-    body: JSON.stringify(baseRevision ? { ...input, base_revision: baseRevision } : input),
+    body: JSON.stringify(presetMutationBody(input, baseRevision, workspace)),
   })
 }
 
@@ -296,11 +304,11 @@ export function createActorState(input: Partial<ActorStateModule>): Promise<Acto
   })
 }
 
-export function updateActorState(id: string, input: Partial<ActorStateModule>, baseRevision?: string): Promise<ActorStateModule> {
+export function updateActorState(id: string, input: Partial<ActorStateModule>, baseRevision?: string, workspace?: string): Promise<ActorStateModule> {
   return requestJSON(`/api/actor-states/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: jsonHeaders,
-    body: JSON.stringify(baseRevision ? { ...input, base_revision: baseRevision } : input),
+    body: JSON.stringify(presetMutationBody(input, baseRevision, workspace)),
   })
 }
 
@@ -323,43 +331,16 @@ export function createStoryMemoryStructure(input: Partial<StoryMemoryStructureMo
   })
 }
 
-export function updateStoryMemoryStructure(id: string, input: Partial<StoryMemoryStructureModule>, baseRevision?: string): Promise<StoryMemoryStructureModule> {
+export function updateStoryMemoryStructure(id: string, input: Partial<StoryMemoryStructureModule>, baseRevision?: string, workspace?: string): Promise<StoryMemoryStructureModule> {
   return requestJSON(`/api/story-memory-structures/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: jsonHeaders,
-    body: JSON.stringify(baseRevision ? { ...input, base_revision: baseRevision } : input),
+    body: JSON.stringify(presetMutationBody(input, baseRevision, workspace)),
   })
 }
 
 export function deleteStoryMemoryStructurePreset(id: string): Promise<void> {
   return requestJSON(`/api/story-memory-structures/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  })
-}
-
-export async function getOpeningSelectors(): Promise<OpeningSelectorModule[]> {
-  const data = await requestJSON<{ opening_selectors: OpeningSelectorModule[] }>('/api/opening-selectors')
-  return data.opening_selectors || []
-}
-
-export function createOpeningSelector(input: Partial<OpeningSelectorModule>): Promise<OpeningSelectorModule> {
-  return requestJSON('/api/opening-selectors', {
-    method: 'POST',
-    headers: jsonHeaders,
-    body: JSON.stringify(input),
-  })
-}
-
-export function updateOpeningSelector(id: string, input: Partial<OpeningSelectorModule>, baseRevision?: string): Promise<OpeningSelectorModule> {
-  return requestJSON(`/api/opening-selectors/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    headers: jsonHeaders,
-    body: JSON.stringify(baseRevision ? { ...input, base_revision: baseRevision } : input),
-  })
-}
-
-export function deleteOpeningSelector(id: string): Promise<void> {
-  return requestJSON(`/api/opening-selectors/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   })
 }
@@ -377,11 +358,11 @@ export function createImagePreset(input: Partial<ImagePreset>): Promise<ImagePre
   })
 }
 
-export function updateImagePreset(id: string, input: Partial<ImagePreset>, baseRevision?: string): Promise<ImagePreset> {
+export function updateImagePreset(id: string, input: Partial<ImagePreset>, baseRevision?: string, workspace?: string): Promise<ImagePreset> {
   return requestJSON(`/api/image-presets/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: jsonHeaders,
-    body: JSON.stringify(baseRevision ? { ...input, base_revision: baseRevision } : input),
+    body: JSON.stringify(presetMutationBody(input, baseRevision, workspace)),
   })
 }
 
@@ -421,18 +402,6 @@ export function switchInteractiveTurnVersion(storyId: string, input: { branch_id
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify(input),
-  })
-}
-
-export function generateInteractiveHotChoices(storyId: string, input: { branch?: string; exclude_choices?: string[]; signal?: AbortSignal }): Promise<HotChoicesResponse> {
-  return requestJSON(`/api/interactive/stories/${encodeURIComponent(storyId)}/hot-choices`, {
-    method: 'POST',
-    headers: jsonHeaders,
-    body: JSON.stringify({
-      branch: input.branch,
-      exclude_choices: input.exclude_choices,
-    }),
-    signal: input.signal,
   })
 }
 
