@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import type { ReactNode } from 'react'
 import { ChevronDown, ChevronUp, Download, ExternalLink, Loader2, PanelLeft, Plus, RefreshCw, Save, Settings as SettingsIcon, Trash2, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import type { ImageAPIProfileSettings, LayeredSettings, ModelProfileSettings, Settings, SettingsLayer, UpdateApplyResult, UpdateCheckResult, UpdateInstallProgress, UpdateInstallResult } from './types'
+import type { ImageAPIProfileSettings, LayeredSettings, ModelProfileSettings, Settings, SettingsLayer, TTSAPIProfileSettings, UpdateApplyResult, UpdateCheckResult, UpdateInstallProgress, UpdateInstallResult } from './types'
 import { applyUpdate, checkForUpdate, fetchSettings, installUpdateStream, updateUserSettings, updateWorkspaceSettings } from './api'
 import { FONT_OPTIONS, fontLabelKeyFor } from './font-options'
 import { settingsForLayer, settingsRevisionForLayer, useAutoSaveSettings } from './use-auto-save-settings'
@@ -22,11 +22,12 @@ import { markAutoUpdateChecked, notifyUpdateCheckResult, shouldRunAutoUpdateChec
 import { scheduleFrontendReloadAfterUpdate } from './update-reload'
 import { DEFAULT_MODEL_PROFILE_ID, modelProfileID, modelProfileLabel, modelProfilesWithDefault } from './model-profiles'
 import { DEFAULT_IMAGE_API_BASE_URL, DEFAULT_IMAGE_API_MODEL, DEFAULT_IMAGE_API_PROFILE_ID, DEFAULT_IMAGE_API_PROVIDER, imageAPIProfileID, imageAPIProfileLabel, imageAPIProfilesWithDefault } from './image-profiles'
+import { TTSAPIProfilesEditor } from './TTSAPIProfilesEditor'
 import { ONBOARDING_OPEN_EVENT, SETTINGS_SECTION_EVENT, type SettingsSectionRequest } from '@/features/onboarding/events'
 
-type SettingsSectionId = 'model' | 'image' | 'paths' | 'access' | 'appearance' | 'updates' | 'agent' | 'debug' | 'ide-editor' | 'ide-output' | 'versions' | 'interactive'
+type SettingsSectionId = 'model' | 'image' | 'tts' | 'paths' | 'access' | 'appearance' | 'updates' | 'agent' | 'debug' | 'ide-editor' | 'ide-output' | 'versions' | 'interactive'
 
-const SETTINGS_SECTION_IDS: SettingsSectionId[] = ['model', 'image', 'paths', 'access', 'appearance', 'updates', 'agent', 'debug', 'ide-editor', 'ide-output', 'versions', 'interactive']
+const SETTINGS_SECTION_IDS: SettingsSectionId[] = ['model', 'image', 'tts', 'paths', 'access', 'appearance', 'updates', 'agent', 'debug', 'ide-editor', 'ide-output', 'versions', 'interactive']
 
 type SettingsSection = {
   id: SettingsSectionId
@@ -82,6 +83,7 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
   const [expandedSections, setExpandedSections] = useState<Record<SettingsSectionId, boolean>>({
     model: true,
     image: true,
+    tts: true,
     paths: true,
     access: true,
     appearance: true,
@@ -251,6 +253,16 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
     }))
   }
 
+  const setTTSAPIProfiles = (profiles: TTSAPIProfileSettings[]) => {
+    setDraft((d) => ({
+      ...d,
+      tts_api_key: '',
+      tts_api_base_url: '',
+      tts_api_model: '',
+      tts_api_profiles: profiles,
+    }))
+  }
+
   useAutoSaveSettings({
     draft,
     saved: layered ? settingsForLayer(layered, activeLayer) : {},
@@ -376,6 +388,23 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
             effectiveDefaultProfileID={effective.default_image_api_profile_id || DEFAULT_IMAGE_API_PROFILE_ID}
             onDefaultProfileChange={(v) => setField('default_image_api_profile_id', v)}
             onChange={setImageAPIProfiles}
+          />
+        </>
+      ),
+    },
+    {
+      id: 'tts',
+      group: t('settings.group.common'),
+      title: t('settings.section.ttsApi'),
+      children: (
+        <>
+          <TTSAPIProfilesEditor
+            profiles={ttsAPIProfilesForEditor(draft, effective)}
+            effectiveProfiles={effective.tts_api_profiles ?? []}
+            defaultProfileID={draft.default_tts_api_profile_id ?? ''}
+            effectiveDefaultProfileID={effective.default_tts_api_profile_id || ''}
+            onDefaultProfileChange={(v) => setField('default_tts_api_profile_id', v)}
+            onChange={setTTSAPIProfiles}
           />
         </>
       ),
@@ -778,6 +807,23 @@ function imageAPIProfilesForEditor(draft: Settings, effective: Settings): ImageA
 
 function stripInheritedImageAPISecret(profile: ImageAPIProfileSettings): ImageAPIProfileSettings {
   return { ...profile, openai_api_key: '' }
+}
+
+function stripInheritedTTSSecret(profile: TTSAPIProfileSettings): TTSAPIProfileSettings {
+  return { ...profile, openai_api_key: '' }
+}
+
+function ttsAPIProfilesForEditor(draft: Settings, effective: Settings): TTSAPIProfileSettings[] {
+  const localProfiles = draft.tts_api_profiles ?? []
+  if (localProfiles.length === 0) {
+    return effective.tts_api_profiles ?? []
+  }
+  const localIDs = new Set(localProfiles.map((p) => p.id).filter(Boolean))
+  const inherited = effective.tts_api_profiles ?? []
+  return [
+    ...inherited.filter((profile) => !localIDs.has(profile.id)).map(stripInheritedTTSSecret),
+    ...localProfiles,
+  ]
 }
 
 function Section({

@@ -112,9 +112,9 @@ export function PlanView({
         <div className="p-3">
           {draftDocs ? (
             editing ? (
-              <DirectorPlanTextarea label={t('snapshot.director.plan')} value={draftDocs.plan} onChange={(value) => onDraftDocsChange({ ...draftDocs, plan: value })} />
+              <DirectorPlanTextarea label={t('snapshot.director.plan')} value={draftDocs.plan ?? ''} onChange={(value) => onDraftDocsChange({ ...draftDocs, plan: value })} />
             ) : (
-              <DirectorPlanMarkdown content={draftDocs.plan} />
+              <DirectorPlanMarkdown content={draftDocs.plan ?? ''} />
             )
           ) : (
             <div className="flex min-h-[220px] items-center justify-center rounded-[10px] border border-dashed border-[var(--nova-border)] px-4 text-center text-xs text-[var(--nova-text-muted)]">{t('memoryPanel.directorEmpty')}</div>
@@ -217,7 +217,7 @@ function DirectorSpoilerGate({ onReveal }: { onReveal: () => void }) {
 
 function DirectorPlanMarkdown({ content }: { content: string }) {
   const { t } = useTranslation()
-  if (!content.trim()) {
+  if (!content?.trim()) {
     return (
       <div className="flex min-h-[180px] items-center justify-center rounded-[var(--nova-radius)] border border-dashed border-[var(--nova-border)] px-4 text-center text-xs text-[var(--nova-text-muted)]">{t('memoryPanel.plan.empty')}</div>
     )

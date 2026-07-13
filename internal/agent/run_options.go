@@ -27,6 +27,10 @@ type RunOptions struct {
 	ToolResultMaxBytes  int
 	SystemPromptLog     SystemPromptCompositionLog
 	OnMutationsVerified func(context.Context, []ToolMutation, PostRunVerification)
+	// Hooks, if non-nil, provides lifecycle callbacks fired at run start,
+	// before each model call, after each tool result, and at run completion.
+	// Hook methods must be non-blocking; long work should be dispatched to a goroutine.
+	Hooks *HookRegistry
 }
 
 func (o RunOptions) normalized(defaultWorkspace string) RunOptions {

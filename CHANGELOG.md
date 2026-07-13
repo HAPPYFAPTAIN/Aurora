@@ -10,8 +10,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - WebUI：修复裸 `Esc` 会全局隐藏右侧 AI 栏、与输入法取消候选或重输冲突的问题；写作与游戏模式统一改用 VS Code 风格的 `Ctrl+Alt+B`（macOS 为 `⌘⌥B`）切换右侧栏，并清理模式切换后已销毁编辑器遗留的按键监听错误。
 - WebUI: Fixed bare `Esc` globally hiding the right AI sidebar and conflicting with IME candidate cancellation or re-entry. Writing and Game modes now use the VS Code-style `Ctrl+Alt+B` (`⌘⌥B` on macOS) to toggle the right sidebar, and stale keyboard listeners no longer access a destroyed editor after mode changes.
+- 游戏模式：修复 Actor 状态字段校验在 LLM 返回嵌套对象（如 `{"resources": {"hp": 10}}`）而模板字段为扁平 `resources.hp` 时报错的问题；现在会自动展开嵌套对象并匹配上游 v6 的 `actorStateFieldsByReference` 字段引用表。
+- Game Mode: Fixed Actor state field validation failing when LLMs return nested objects (e.g. `{"resources": {"hp": 10}}`) while template fields are flat `resources.hp`; nested objects are now auto-expanded and matched against the upstream v6 `actorStateFieldsByReference` field reference table.
+- WebUI：修复导演控制台 PlanView 在 `draftDocs.plan` 为 undefined/null 时崩溃的问题（`content.trim()` → `content?.trim()`，传值处加 `?? ''` 空值兜底）。
+- WebUI: Fixed Director Console PlanView crash when `draftDocs.plan` is undefined/null (`content.trim()` → `content?.trim()`, plus `?? ''` fallback at call sites).
 
 ### Added
+
+- TTS：移植 Aurora TTS 语音朗读系统到上游 v6 架构，支持 OpenAI 兼容 TTS 和阶跃星辰 Step Fun TTS；包含音色列表自动获取、SSE 流式合成、长文本分段、编辑器朗读按钮、消息朗读按钮。
+- TTS: Ported Aurora TTS voice synthesis system to upstream v6 architecture, supporting OpenAI-compatible TTS and Step Fun TTS; includes automatic voice list fetching, SSE streaming synthesis, long-text segmentation, editor read-aloud button, and message read-aloud button.
+- 图表：移植 Aurora 图表编辑器到上游架构，支持 Mermaid 图表生成（5 种预设类型：人物关系图、流程图、时间线、架构图、思维导图），写作模式和游戏模式均可使用。
+- Diagram: Ported Aurora diagram editor to upstream architecture, supporting Mermaid diagram generation (5 preset types: character relationship, flowchart, timeline, architecture, mindmap), available in both Writing Mode and Game Mode.
+- 资料卡片索引：移植 Aurora 资料卡片索引系统到上游架构，集成到主程序，API 端点 `/api/material-index/*`，支持搜索、统计、卡片生成、索引重建、文件导入。
+- Material Index: Ported Aurora material index system to upstream architecture, integrated into the main binary, API endpoints at `/api/material-index/*`, supporting search, stats, card generation, index rebuild, and file import.
+- Agent：移植 Aurora 生命周期钩子系统（Lifecycle Hooks），在 `chat.go` 的 4 个阶段（run start / model call / tool result / run complete）插入钩子调用点；支持异步记忆 Worker（AsyncMemoryWorker）用于分块整理互动故事记忆。
+- Agent: Ported Aurora lifecycle hooks system, inserting hook call points at 4 phases in `chat.go` (run start / model call / tool result / run complete); supports AsyncMemoryWorker for chunked interactive story memory consolidation.
 
 - 游戏模式：新故事创建前新增状态结构初始化 Director。它会基于有界的标题、故事起源、开局、故事导演策略、所选状态预设和 TRPG State Binding，输出模板/字段/初始 Actor 差异；后端校验基础模板、字段类型、默认值、词条池与全部 TRPG 引用后，将结果和适配审计一起冻结为故事专属 Actor State schema。关系群像、修仙成长、TRPG 数值和合法成年题材等状态维度由具体设定综合决定，不按题材关键词硬编码。
 - Game Mode: Added a state-schema initialization Director before new-story creation. From bounded title, origin, opening, Story Director strategy, selected State System preset, and TRPG State Bindings, it proposes template/field/initial-Actor diffs. The backend validates foundational templates, field types, defaults, trait pools, and every TRPG reference before freezing the result and its audit as the story-specific Actor State schema. Relationship ensembles, cultivation progression, TRPG numbers, and lawful adult-theme dimensions are inferred from the actual setup rather than hard-coded genre keywords.

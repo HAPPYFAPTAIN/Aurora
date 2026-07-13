@@ -9,6 +9,11 @@ export interface Settings {
   image_api_model?: string
   default_image_api_profile_id?: string
   image_api_profiles?: ImageAPIProfileSettings[]
+  tts_api_key?: string
+  tts_api_base_url?: string
+  tts_api_model?: string
+  default_tts_api_profile_id?: string
+  tts_api_profiles?: TTSAPIProfileSettings[]
   agent_models?: AgentModelSettings
   agent_tools?: AgentToolSettings
   agent_prompts?: AgentPromptSettings
@@ -79,6 +84,19 @@ export interface ImageAPIProfileSettings {
   default_size?: string
   default_quality?: string
   default_output_format?: string
+}
+
+export interface TTSAPIProfileSettings {
+  id?: string
+  name?: string
+  provider?: string
+  openai_api_key?: string
+  openai_base_url?: string
+  openai_model?: string
+  default_voice?: string
+  default_format?: string
+  default_speed?: string
+  instruction?: string
 }
 
 export interface AgentModelSettings {

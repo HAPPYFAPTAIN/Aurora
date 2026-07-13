@@ -1,6 +1,6 @@
 import { Children, Fragment, cloneElement, isValidElement, memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import { Activity, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleDot, ClipboardCheck, ClipboardList, Clock3, Copy, Dice5, FileText, ImagePlus, ListTodo, Loader2, PanelRightOpen, Pencil, RefreshCw, Send, X } from 'lucide-react'
+import { Activity, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleDot, ClipboardCheck, ClipboardList, Clock3, Copy, Dice5, FileText, ImagePlus, ListTodo, Loader2, PanelRightOpen, Pencil, RefreshCw, Send, Volume2, VolumeX, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ImagePreviewDialog } from '@/components/common/ImagePreviewDialog'
 import { MarkdownRenderer, type MarkdownRendererComponents } from '@/components/common/MarkdownRenderer'
@@ -8,6 +8,7 @@ import { workspaceAssetURL, type ChapterIllustration, type ChatMessage, type Int
 import { findDialogueHighlightRanges } from '@/lib/dialogue-highlight'
 import { isWorkspaceImagePath } from '@/lib/workspace-file-kind'
 import { useBottomScrollLock } from '@/hooks/useBottomScrollLock'
+import { useTTS } from '@/features/tts/useTTS'
 import { TooltipIconButton } from '@/components/common/tooltip-icon-button'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { subAgentSessionKey } from './subagent-session'
@@ -50,6 +51,7 @@ const planThinkingPreviewStaleMs = 3500
 /** 单条消息组件，根据 role 渲染不同样式 */
 export const MessageItem = memo(function MessageItem({ message, highlightDialogue = false, messageStyle, onEdit, onRegenerate, onSwitchVersion, onOpenSubAgentSession, onInsertIllustration, onGenerateInteractiveImage, generatingInteractiveImageTurnId, activeSubAgentSessionKey, subAgentPresentation = 'card', onSubmitPlanQuestion, onApprovePlan, onContinuePlan, onExitPlanMode, onOpenTrace, onPlanCardLayoutChange }: MessageItemProps) {
   const { role, content = '' } = message
+  const tts = useTTS()
   const canEdit = role === 'user' && Boolean(message.turn_id) && Boolean(onEdit)
   const canRegenerate = role === 'assistant' && Boolean(message.turn_id) && Boolean(onRegenerate) && !message.streaming
   const canGenerateInteractiveImage = role === 'assistant' && Boolean(message.turn_id) && Boolean(onGenerateInteractiveImage) && !message.streaming
@@ -117,6 +119,9 @@ export const MessageItem = memo(function MessageItem({ message, highlightDialogu
                 onSwitchVersion={canSwitchVersion ? onSwitchVersion : undefined}
                 versionIndex={versionIndex}
                 versionCount={versionCount}
+                ttsSpeakingMessageId={tts.speakingMessageId}
+                ttsLoading={tts.loading}
+                onSpeak={!message.streaming ? tts.speakStream : undefined}
               />
             </div>
           </div>
@@ -261,7 +266,7 @@ function formatSignedRuleRollNumber(value: number) {
   return value > 0 ? `+${formatted}` : formatted
 }
 
-function MessageInlineMeta({ message, content, align, reserveSpace = false, hideActions = false, onEdit, onGenerateInteractiveImage, generatingInteractiveImage = false, onRegenerate, onSwitchVersion, versionIndex = -1, versionCount = 0 }: { message: ChatMessage; content: string; align: 'left' | 'right'; reserveSpace?: boolean; hideActions?: boolean; onEdit?: (message: ChatMessage) => void; onGenerateInteractiveImage?: (message: ChatMessage) => void; generatingInteractiveImage?: boolean; onRegenerate?: (message: ChatMessage) => void; onSwitchVersion?: (message: ChatMessage, direction: -1 | 1) => void; versionIndex?: number; versionCount?: number }) {
+function MessageInlineMeta({ message, content, align, reserveSpace = false, hideActions = false, onEdit, onGenerateInteractiveImage, generatingInteractiveImage = false, onRegenerate, onSwitchVersion, versionIndex = -1, versionCount = 0, ttsSpeakingMessageId = null, ttsLoading = false, onSpeak }: { message: ChatMessage; content: string; align: 'left' | 'right'; reserveSpace?: boolean; hideActions?: boolean; onEdit?: (message: ChatMessage) => void; onGenerateInteractiveImage?: (message: ChatMessage) => void; generatingInteractiveImage?: boolean; onRegenerate?: (message: ChatMessage) => void; onSwitchVersion?: (message: ChatMessage, direction: -1 | 1) => void; versionIndex?: number; versionCount?: number; ttsSpeakingMessageId?: string | null; ttsLoading?: boolean; onSpeak?: (messageId: string, text: string) => void }) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
   const formatted = formatMessageHoverTime(message.created_at)
@@ -300,6 +305,27 @@ function MessageInlineMeta({ message, content, align, reserveSpace = false, hide
             {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
           </TooltipIconButton>
         )}
+        {onSpeak && message.role === 'assistant' && content ? (
+          <TooltipIconButton
+            label={ttsSpeakingMessageId === message.id ? t('chat.action.stopSpeaking') : t('chat.action.speak')}
+            {...metaTooltip}
+            className="h-5 w-5 border border-transparent bg-transparent text-[var(--nova-text-faint)] shadow-none hover:border-[var(--nova-border)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text-muted)]"
+            onClick={(event) => {
+              event.stopPropagation()
+              if (!message.id) return
+              if (ttsLoading && ttsSpeakingMessageId === message.id) return
+              onSpeak(message.id, content)
+            }}
+          >
+            {ttsLoading && ttsSpeakingMessageId === message.id ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : ttsSpeakingMessageId === message.id ? (
+              <VolumeX className="h-3 w-3" />
+            ) : (
+              <Volume2 className="h-3 w-3" />
+            )}
+          </TooltipIconButton>
+        ) : null}
         {onGenerateInteractiveImage && (
           <TooltipIconButton
             label={message.interactive_images?.length || message.interactive_image ? t('chat.interactiveImage.regenerate') : t('chat.action.generateInteractiveImage')}

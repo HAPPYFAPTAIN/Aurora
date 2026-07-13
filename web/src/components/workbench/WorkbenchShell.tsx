@@ -6,7 +6,7 @@ import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, us
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Group, Panel, Separator } from 'react-resizable-panels'
-import { BookOpen, Bot, Clock3, Database, History, MessageSquareText, PanelLeft, PenLine, Search, Settings, SlidersHorizontal, Sparkles, X } from 'lucide-react'
+import { BookOpen, Bot, Clock3, Database, History, MessageSquareText, PanelLeft, PenLine, Search, Settings, SlidersHorizontal, Sparkles, Workflow, X } from 'lucide-react'
 import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
 import { WorkspaceLayout } from '@/components/layout/workspace-layout'
 import { WorkspaceMobileLayout, type MobileNavItem } from '@/components/layout/workspace-mobile-layout'
@@ -48,7 +48,7 @@ interface WorkbenchShellProps {
   onDismissUpdateNotice?: () => void
 }
 
-type ActivityItemId = 'writing' | 'story' | 'timeline' | 'lore' | 'teller' | 'versions' | 'books' | 'skills' | 'agents' | 'automations'
+type ActivityItemId = 'writing' | 'story' | 'timeline' | 'lore' | 'teller' | 'versions' | 'diagram' | 'books' | 'skills' | 'agents' | 'automations'
 type ActivityOrderScope = 'ide' | 'interactive'
 type SortableActivityItemId = `${ActivityOrderScope}:${ActivityItemId}`
 
@@ -69,8 +69,8 @@ const ACTIVITY_ORDER_STORAGE_KEYS: Record<ActivityOrderScope, string> = {
   ide: 'nova.activity.order.ide.v2',
   interactive: 'nova.activity.order.interactive.v2',
 }
-const DEFAULT_IDE_ACTIVITY_ORDER: ActivityItemId[] = ['writing', 'lore', 'teller', 'versions', 'books', 'skills', 'agents', 'automations']
-const DEFAULT_INTERACTIVE_ACTIVITY_ORDER: ActivityItemId[] = ['story', 'timeline', 'lore', 'teller', 'versions', 'books', 'skills', 'agents', 'automations']
+const DEFAULT_IDE_ACTIVITY_ORDER: ActivityItemId[] = ['writing', 'lore', 'teller', 'versions', 'diagram', 'books', 'skills', 'agents', 'automations']
+const DEFAULT_INTERACTIVE_ACTIVITY_ORDER: ActivityItemId[] = ['story', 'timeline', 'lore', 'teller', 'versions', 'diagram', 'books', 'skills', 'agents', 'automations']
 const ACTIVITY_BAR_WIDTH_STORAGE_KEY = 'nova.layout.activityBarWidth'
 const ACTIVITY_BAR_COLLAPSED_WIDTH = 64
 const ACTIVITY_BAR_MIN_WIDTH = 112
@@ -160,14 +160,15 @@ export function WorkbenchShell({
   const loreVisible = rightPanel === 'lore'
   const tellerVisible = rightPanel === 'teller'
   const versionsVisible = rightPanel === 'versions'
+  const diagramVisible = rightPanel === 'diagram'
   const sharedMenuActive = settingsOpen || versionsVisible || mode === 'books' || mode === 'skills' || mode === 'agents' || mode === 'automations'
   const ideModeActive = mode === 'ide' && !sharedMenuActive
   const interactiveModeActive = mode === 'interactive' && !sharedMenuActive
   const skillsActive = mode === 'skills' && !settingsOpen
   const agentsActive = mode === 'agents' && !settingsOpen
   const automationsActive = mode === 'automations' && !settingsOpen
-  const fullWorkspacePanelVisible = settingsOpen || versionsVisible || mode === 'skills' || mode === 'agents' || mode === 'automations' || (mode === 'ide' && (loreVisible || tellerVisible))
-  const modeLabel = settingsOpen ? t('workbench.mode.settings') : versionsVisible ? t('workbench.activity.versions') : mode === 'interactive' ? t('workbench.mode.interactive') : mode === 'books' ? t('workbench.mode.books') : mode === 'skills' ? t('workbench.mode.skills') : mode === 'agents' ? t('workbench.mode.agents') : mode === 'automations' ? t('workbench.mode.automations') : t('workbench.mode.ide')
+  const fullWorkspacePanelVisible = settingsOpen || versionsVisible || mode === 'skills' || mode === 'agents' || mode === 'automations' || (mode === 'ide' && (loreVisible || tellerVisible)) || diagramVisible
+  const modeLabel = settingsOpen ? t('workbench.mode.settings') : versionsVisible ? t('workbench.activity.versions') : diagramVisible ? t('workbench.activity.diagram') : mode === 'interactive' ? t('workbench.mode.interactive') : mode === 'books' ? t('workbench.mode.books') : mode === 'skills' ? t('workbench.mode.skills') : mode === 'agents' ? t('workbench.mode.agents') : mode === 'automations' ? t('workbench.mode.automations') : t('workbench.mode.ide')
   const navigationMode = mode === 'books' || mode === 'skills' || mode === 'agents' || mode === 'automations' ? booksReturnMode : mode
   const activityOrderScope: ActivityOrderScope = navigationMode === 'interactive' ? 'interactive' : 'ide'
   const activityOrder = activityOrders[activityOrderScope]
@@ -179,12 +180,12 @@ export function WorkbenchShell({
   const openWriting = () => {
     closeSettingsIfOpen()
     onSetMode('ide')
-    if (loreVisible || tellerVisible || versionsVisible) onSetRightPanel(null)
+    if (loreVisible || tellerVisible || versionsVisible || diagramVisible) onSetRightPanel(null)
   }
 
   const switchNavigationMode = (nextMode: 'ide' | 'interactive') => {
     closeSettingsIfOpen()
-    if (versionsVisible) onSetRightPanel(null)
+    if (versionsVisible || diagramVisible) onSetRightPanel(null)
     onSetMode(nextMode)
   }
 
@@ -202,9 +203,17 @@ export function WorkbenchShell({
     onSetRightPanel(versionsVisible ? null : 'versions')
   }
 
+  const openDiagram = () => {
+    closeSettingsIfOpen()
+    if (mode === 'books' || mode === 'skills' || mode === 'agents' || mode === 'automations') {
+      onSetMode(booksReturnMode)
+    }
+    onSetRightPanel(diagramVisible ? null : 'diagram')
+  }
+
   const openInteractiveSubmode = (nextMode: InteractiveSubmode) => {
     closeSettingsIfOpen()
-    if (versionsVisible) onSetRightPanel(null)
+    if (versionsVisible || diagramVisible) onSetRightPanel(null)
     onSetMode('interactive')
     onSetInteractiveSubmode(nextMode)
   }
@@ -215,7 +224,7 @@ export function WorkbenchShell({
       return
     }
     onSetMode('ide')
-    if (loreVisible || tellerVisible || versionsVisible) onSetRightPanel(null)
+    if (loreVisible || tellerVisible || versionsVisible || diagramVisible) onSetRightPanel(null)
   }
 
   const openBooks = () => {
@@ -224,7 +233,7 @@ export function WorkbenchShell({
       return
     }
     closeSettingsIfOpen()
-    if (versionsVisible) onSetRightPanel(null)
+    if (versionsVisible || diagramVisible) onSetRightPanel(null)
     onSetMode('books')
   }
 
@@ -234,7 +243,7 @@ export function WorkbenchShell({
       return
     }
     closeSettingsIfOpen()
-    if (versionsVisible) onSetRightPanel(null)
+    if (versionsVisible || diagramVisible) onSetRightPanel(null)
     onSetMode('agents')
   }
 
@@ -244,7 +253,7 @@ export function WorkbenchShell({
       return
     }
     closeSettingsIfOpen()
-    if (versionsVisible) onSetRightPanel(null)
+    if (versionsVisible || diagramVisible) onSetRightPanel(null)
     onSetMode('skills')
   }
 
@@ -254,7 +263,7 @@ export function WorkbenchShell({
       return
     }
     closeSettingsIfOpen()
-    if (versionsVisible) onSetRightPanel(null)
+    if (versionsVisible || diagramVisible) onSetRightPanel(null)
     onSetMode('automations')
   }
 
@@ -329,6 +338,13 @@ export function WorkbenchShell({
       icon: <History className="h-4 w-4" />,
     },
     {
+      id: 'diagram',
+      label: t('workbench.activity.diagram'),
+      onClick: openDiagram,
+      active: diagramVisible && !settingsOpen,
+      icon: <Workflow className="h-4 w-4" />,
+    },
+    {
       id: 'skills',
       label: t('workbench.activity.skills'),
       onClick: openSkills,
@@ -356,7 +372,7 @@ export function WorkbenchShell({
       ...(navigationMode === 'interactive' ? interactiveActivityItems : ideActivityItems),
       ...sharedActivityItems,
     ], activityOrder, defaultActivityOrderForScope(activityOrderScope)),
-    [activityOrder, activityOrderScope, agentsActive, automationInboxUnread, automationsActive, booksReturnMode, ideModeActive, interactiveModeActive, interactiveSubmode, loreVisible, mode, navigationMode, settingsOpen, skillsActive, tellerVisible, versionsVisible],
+    [activityOrder, activityOrderScope, agentsActive, automationInboxUnread, automationsActive, booksReturnMode, diagramVisible, ideModeActive, interactiveModeActive, interactiveSubmode, loreVisible, mode, navigationMode, settingsOpen, skillsActive, tellerVisible, versionsVisible],
   )
 
   const handleActivityDragEnd = (event: DragEndEvent) => {
@@ -526,7 +542,7 @@ export function WorkbenchShell({
 
   const statusBar = (
     <div className="nova-statusbar nova-topbar flex h-6 shrink-0 items-center border-t px-3">
-      <span>Denova v{appVersion}</span>
+      <span>Aurora v{appVersion}</span>
       {mode === 'ide' && summary && (
         <span className="ml-4">{t('workbench.status.summary', { title: summary.title || t('workbench.untitled'), chapters: formatNumber(summary.chapter_count), words: formatNumber(summary.total_words) })}</span>
       )}

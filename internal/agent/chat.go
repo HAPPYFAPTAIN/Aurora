@@ -194,6 +194,24 @@ func (r *Runtime) Run(
 		if err := runLedger.RecordFinish(status, reason, generatedBytes); err != nil {
 			runLogger.Warn("run_ledger_finish_failed", slog.String("run_id", runLedger.ID()), slog.Any("error", err))
 		}
+		// Fire OnRunComplete lifecycle hooks.
+		if options.Hooks != nil {
+			runResult := RunResult{
+				Status:         status,
+				GeneratedBytes: generatedBytes,
+				Error:          reason,
+			}
+			hookCtx := &RunContext{
+				RunID:       runLedger.ID(),
+				TaskID:      options.TaskID,
+				AgentKind:   options.AgentKind,
+				SessionID:   options.SessionID,
+				Workspace:   workspace,
+				Mode:        options.Mode,
+				UserMessage: req.Message,
+			}
+			_ = options.Hooks.fireRunComplete(context.Background(), hookCtx, runResult)
+		}
 	}
 
 	if runID == "" {
@@ -229,6 +247,19 @@ func (r *Runtime) Run(
 		"root_agent_name": options.RootAgentName,
 		"phase":           "started",
 	}})
+	// Fire OnRunStart lifecycle hooks.
+	if options.Hooks != nil {
+		hookCtx := &RunContext{
+			RunID:       runLedger.ID(),
+			TaskID:      options.TaskID,
+			AgentKind:   options.AgentKind,
+			SessionID:   options.SessionID,
+			Workspace:   workspace,
+			Mode:        options.Mode,
+			UserMessage: req.Message,
+		}
+		_ = options.Hooks.fireRunStart(context.Background(), hookCtx)
+	}
 	originalMessage := req.Message
 	if err := runLedger.Record("run_started", map[string]any{
 		"workspace":       workspace,
@@ -357,6 +388,22 @@ func (r *Runtime) Run(
 		runOptions = append(runOptions, adk.WithCheckPointID(checkpointID))
 	}
 	events := runner.Run(runCtx, history, runOptions...)
+	// Fire OnModelCall lifecycle hook before the first model call.
+	if options.Hooks != nil {
+		hookCtx := &RunContext{
+			RunID:       runID,
+			TaskID:      options.TaskID,
+			AgentKind:   options.AgentKind,
+			SessionID:   options.SessionID,
+			Workspace:   workspace,
+			Mode:        options.Mode,
+			UserMessage: req.Message,
+		}
+		_ = options.Hooks.fireModelCall(context.Background(), hookCtx, ModelCallInfo{
+			MessageCount: len(history),
+			AgentKind:    options.AgentKind,
+		})
+	}
 	var fullContent strings.Builder
 	var fullThinking strings.Builder
 	var planParser *planProtocolParser
@@ -487,6 +534,24 @@ func (r *Runtime) Run(
 			}
 			toolContextRecorder.RecordToolResult(mv.Message.ToolName, mv.Message.ToolCallID, content, eventMeta)
 			emit(Event{Type: "tool_result", Data: data})
+			// Fire OnToolResult lifecycle hook.
+			if options.Hooks != nil {
+				hookCtx := &RunContext{
+					RunID:       runID,
+					TaskID:      options.TaskID,
+					AgentKind:   options.AgentKind,
+					SessionID:   options.SessionID,
+					Workspace:   workspace,
+					Mode:        options.Mode,
+					UserMessage: req.Message,
+				}
+				_ = options.Hooks.fireToolResult(context.Background(), hookCtx, ToolResultInfo{
+					ToolName:   mv.Message.ToolName,
+					ToolCallID: mv.Message.ToolCallID,
+					Result:     content,
+					AgentKind:  options.AgentKind,
+				})
+			}
 			continue
 		}
 

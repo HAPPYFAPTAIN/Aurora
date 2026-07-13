@@ -571,6 +571,36 @@ func collectLegacyActorStateLeaves(prefix string, values map[string]any, out map
 	}
 }
 
+// expandNestedActorStateFields unfolds nested object values whose top-level
+// key does not match a template field. When the LLM returns something like
+// {"resources": {"hp": 10}} but the template field is the flat "resources.hp",
+// the nested map is flattened into dotted-path keys so the existing reference
+// lookup can match each leaf individually. Fields that already match a
+// template field (including object-typed fields) are preserved as-is.
+func expandNestedActorStateFields(state map[string]any, fieldByReference map[string]ActorStateField) map[string]any {
+	if len(state) == 0 {
+		return state
+	}
+	expanded := make(map[string]any, len(state))
+	for key, value := range state {
+		if _, ok := fieldByReference[actorStateFieldNameKey(key)]; ok {
+			expanded[key] = value
+			continue
+		}
+		nested, ok := value.(map[string]any)
+		if !ok || len(nested) == 0 {
+			expanded[key] = value
+			continue
+		}
+		leaves := map[string]any{}
+		collectLegacyActorStateLeaves(strings.TrimSpace(key), nested, leaves)
+		for leafKey, leafValue := range leaves {
+			expanded[leafKey] = leafValue
+		}
+	}
+	return expanded
+}
+
 func legacyActorStateFieldType(value any) string {
 	switch value.(type) {
 	case bool:
@@ -813,6 +843,7 @@ func validateActorStatePatch(system StoryDirectorActorStateSystem, currentState 
 		}
 	}
 	if !created {
+		patch.State = expandNestedActorStateFields(patch.State, fieldByReference)
 		keys := make([]string, 0, len(patch.State))
 		for key := range patch.State {
 			keys = append(keys, key)

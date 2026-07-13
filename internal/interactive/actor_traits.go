@@ -409,6 +409,7 @@ func buildNewActorStateOps(template ActorStateTemplate, actorID, name, role, des
 			normalizedState[fieldID] = field.Default
 		}
 	}
+	state = expandNestedActorStateFields(state, fieldByReference)
 	keys := make([]string, 0, len(state))
 	for key := range state {
 		keys = append(keys, strings.TrimSpace(key))

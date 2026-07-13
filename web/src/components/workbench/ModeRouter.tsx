@@ -26,12 +26,13 @@ const WRITING_AGENT_INIT_EVENT = 'nova:writing-agent-init'
 const InteractiveLayout = lazy(() => import('@/features/interactive/components/InteractiveLayout').then((module) => ({ default: module.InteractiveLayout })))
 const SettingPanel = lazy(() => import('@/features/interactive/components/SettingPanel').then((module) => ({ default: module.SettingPanel })))
 const VersionPanel = lazy(() => import('@/components/Versions/VersionPanel').then((module) => ({ default: module.VersionPanel })))
+const DiagramPanel = lazy(() => import('@/components/Diagram/DiagramPanel').then((module) => ({ default: module.DiagramPanel })))
 const HomeView = lazy(() => import('@/components/Home/HomeView').then((module) => ({ default: module.HomeView })))
 const AgentsView = lazy(() => import('@/features/agents/AgentsView').then((module) => ({ default: module.AgentsView })))
 const AutomationsView = lazy(() => import('@/features/automations/AutomationsView').then((module) => ({ default: module.AutomationsView })))
 const SkillsView = lazy(() => import('@/features/skills/SkillsView').then((module) => ({ default: module.SkillsView })))
 const SettingsView = lazy(() => import('@/features/settings/SettingsView').then((module) => ({ default: module.SettingsView })))
-type MainRouteId = 'settings' | 'skills' | 'agents' | 'automations' | 'books' | 'interactive' | 'versions' | 'ide-lore' | 'ide-teller' | 'ide-writing'
+type MainRouteId = 'settings' | 'skills' | 'agents' | 'automations' | 'books' | 'interactive' | 'versions' | 'diagram' | 'ide-lore' | 'ide-teller' | 'ide-writing'
 type PlanningDocumentIcon = 'ideas' | 'outline' | 'plan' | 'creator' | 'progress' | 'characterState'
 
 interface ModeRouterProps {
@@ -213,6 +214,7 @@ export function ModeRouter(props: ModeRouterProps) {
     openFiles: openTabs.map((tab) => tab.path),
   }), [openTabs, selectedFile])
   const versionsVisible = rightPanel === 'versions'
+  const diagramVisible = rightPanel === 'diagram'
   const agentsVisible = mode === 'agents'
   const automationsVisible = mode === 'automations'
   const skillsVisible = mode === 'skills'
@@ -330,7 +332,7 @@ export function ModeRouter(props: ModeRouterProps) {
       return
     }
     onSetMode('ide')
-    if (rightPanel === 'lore' || rightPanel === 'teller' || rightPanel === 'versions') onSetRightPanel(null)
+    if (rightPanel === 'lore' || rightPanel === 'teller' || rightPanel === 'versions' || rightPanel === 'diagram') onSetRightPanel(null)
   }
   const visibleMainRoute: MainRouteId = settingsOpen
     ? 'settings'
@@ -344,11 +346,13 @@ export function ModeRouter(props: ModeRouterProps) {
             ? 'books'
             : versionsVisible
               ? 'versions'
-              : mode === 'interactive'
-                ? 'interactive'
-                : ideWorkspacePanel
-                  ? `ide-${ideWorkspacePanel}`
-                  : 'ide-writing'
+              : diagramVisible
+                ? 'diagram'
+                : mode === 'interactive'
+                  ? 'interactive'
+                  : ideWorkspacePanel
+                    ? `ide-${ideWorkspacePanel}`
+                    : 'ide-writing'
   const [mountedRoutes, setMountedRoutes] = useState<ReadonlySet<MainRouteId>>(() => new Set(['ide-writing', visibleMainRoute]))
 
   useEffect(() => {
@@ -507,6 +511,11 @@ export function ModeRouter(props: ModeRouterProps) {
             visible={versionsVisible}
             onClose={() => onSetRightPanel(null)}
           />
+        </MainRouteLayer>
+      )}
+      {mountedRoutes.has('diagram') && (
+        <MainRouteLayer visible={visibleMainRoute === 'diagram'}>
+          <DiagramPanel onClose={() => onSetRightPanel(null)} />
         </MainRouteLayer>
       )}
       {mountedRoutes.has('ide-lore') && (

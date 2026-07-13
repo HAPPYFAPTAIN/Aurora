@@ -60,6 +60,7 @@ const editor = {
   'editor.preview.invalidJsonl': '{{count}} JSONL line(s) failed to parse and remain raw',
   'editor.preview.truncated': 'Large content; showing the first {{count}} characters',
   'editor.preview.rawLarge': 'Large file; formatting was skipped and raw content is shown',
+  'editor.speak': 'Read Aloud',
 } as const
 
 export default editor
