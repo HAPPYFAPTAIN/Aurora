@@ -12,6 +12,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Diagram editor: Integrated draw.io (react-drawio), supporting diagram creation, editing, and saving in both Writing Mode and Game Mode; supports AI-generated draw.io XML diagrams (character relationship diagrams, flowcharts, timelines, etc.).
 - Skills：新增内置 `orchestrate-projects` Skill，用于按里程碑路线图、Goal-mode 目标、线程分工、复核和本地验证协调长周期项目（同步自上游 denova）。
 - Skills: Added the built-in `orchestrate-projects` Skill for coordinating long-running projects with milestone roadmaps, Goal-mode objectives, thread delegation, audits, and local validation (synced from upstream denova).
+- 融合上游 denova v6 全部 17 个 commit（354 文件、35K+ 行）：Agent 上下文重构、State System v6、StateDelta v2、Event Orchestration V2、TurnContract+TurnResult、Memory Recorder/Director 拆分、状态结构初始化 Director、TRPG d20/d100 State Binding、GFM Markdown 表格、Esc→Ctrl+Alt+B 切换、Actor State Explorer UI、Skills 文件树浏览、govulncheck CI、Go 1.26.5+。
+- Merged all 17 upstream denova v6 commits (354 files, 35K+ lines): Agent context refactoring, State System v6, StateDelta v2, Event Orchestration V2, TurnContract+TurnResult, Memory Recorder/Director split, state-schema initialization Director, TRPG d20/d100 State Binding, GFM Markdown tables, Esc→Ctrl+Alt+B toggle, Actor State Explorer UI, Skills file-tree browser, govulncheck CI, Go 1.26.5+.
+- Aurora 特性移植到 v6 架构：TTS 语音朗读、Mermaid 图表生成（5 种预设）、资料卡片索引系统、生命周期钩子（4 阶段）+ 异步记忆 Worker。
+- Ported Aurora features to v6 architecture: TTS voice synthesis, Mermaid diagram generation (5 presets), material index system, lifecycle hooks (4 phases) + AsyncMemoryWorker.
+
+### Fixed
+
+- 游戏模式：修复 Actor 状态字段校验在 LLM 返回嵌套对象时报错的问题（适配 v6 `actorStateFieldsByReference`）。
+- Game Mode: Fixed Actor state field validation failing on nested objects from LLMs (adapted to v6 `actorStateFieldsByReference`).
+- WebUI：修复导演控制台 PlanView 在 `draftDocs.plan` 为 undefined/null 时崩溃的问题。
+- WebUI: Fixed Director Console PlanView crash when `draftDocs.plan` is undefined/null.
 
 ### Security
 
