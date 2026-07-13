@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - 图表编辑器：集成 draw.io（react-drawio），支持在写作模式和游戏模式中创建、编辑、保存图表；支持 AI 生成 draw.io XML 图表（人物关系图、流程图、时间线等）。
 - Diagram editor: Integrated draw.io (react-drawio), supporting diagram creation, editing, and saving in both Writing Mode and Game Mode; supports AI-generated draw.io XML diagrams (character relationship diagrams, flowcharts, timelines, etc.).
+- Skills：新增内置 `orchestrate-projects` Skill，用于按里程碑路线图、Goal-mode 目标、线程分工、复核和本地验证协调长周期项目（同步自上游 denova）。
+- Skills: Added the built-in `orchestrate-projects` Skill for coordinating long-running projects with milestone roadmaps, Goal-mode objectives, thread delegation, audits, and local validation (synced from upstream denova).
 
 ### Security
 
@@ -31,6 +33,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Material index system integrated into the Aurora main binary; no longer requires a standalone search service; API endpoints at `/api/material-index/*`.
 - 构建脚本添加 `-trimpath -ldflags "-s -w"` 优化标志，二进制体积减少约 30%。
 - Build scripts now use `-trimpath -ldflags "-s -w"` optimization flags, reducing binary size by ~30%.
+- CI：新增 `govulncheck` 安全漏洞扫描步骤（同步自上游 denova）。
+- CI: Added `govulncheck` Go vulnerability scan step (synced from upstream denova).
+- 文档：CONTRIBUTING.md 中 Go 版本要求从 1.26+ 提升至 1.26.5+（同步自上游 denova）。
+- Docs: Updated Go version requirement from 1.26+ to 1.26.5+ in CONTRIBUTING.md (synced from upstream denova).
 
 ## [v0.1.19] - 2026-07-11
 
