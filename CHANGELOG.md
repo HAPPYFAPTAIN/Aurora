@@ -23,6 +23,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Game Mode: Fixed Actor state field validation failing on nested objects from LLMs (adapted to v6 `actorStateFieldsByReference`).
 - WebUI：修复导演控制台 PlanView 在 `draftDocs.plan` 为 undefined/null 时崩溃的问题。
 - WebUI: Fixed Director Console PlanView crash when `draftDocs.plan` is undefined/null.
+- WebUI：修复写作模式发送消息后输入框内容（如 initPrompt 预填提示词）未被清空的问题；根因是 TipTap 编辑器在 `disabled`（AI 回复中）状态下，value→editor 同步使用的 `setContent(空 JSON)` 不会更新 editor DOM，改用 TipTap 内置 `clearContent` 命令确保发送后输入框被可靠清空。同步自上游 denova #53。
+- WebUI: Fixed the composer input (e.g. initPrompt prefill) not being cleared after sending in writing mode. Root cause: TipTap's `setContent(empty JSON)` used by the value→editor sync does not update the editor DOM while `disabled` (AI streaming); switched to TipTap's built-in `clearContent` command to reliably clear the input after a send. Synced from upstream denova #53.
+- 书籍管理：修复作者字段（author）虽然标记为可选但无法清除的问题；后端 `UpdateBookInfo` 不再以非空为条件覆盖，前端 HomeView 在作者为空时显示 `No Author` 占位。同步自上游 denova #49。
+- Books: Fixed the author field being optional but impossible to clear. Backend `UpdateBookInfo` now always updates author (no longer gated by non-empty), and the HomeView shows `No Author` when the author is empty. Synced from upstream denova #49.
 
 ### Security
 
@@ -48,6 +52,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - CI: Added `govulncheck` Go vulnerability scan step (synced from upstream denova).
 - 文档：CONTRIBUTING.md 中 Go 版本要求从 1.26+ 提升至 1.26.5+（同步自上游 denova）。
 - Docs: Updated Go version requirement from 1.26+ to 1.26.5+ in CONTRIBUTING.md (synced from upstream denova).
+- 文档：README 中“从源码运行”一节补充 `ripgrep` 依赖说明，避免 Agent 跳过规则检查。同步自上游 denova #48。
+- Docs: README "Run from Source" section now lists `ripgrep` as a required dependency to prevent the agent from skipping rule checks. Synced from upstream denova #48.
 
 ## [v0.1.19] - 2026-07-11
 

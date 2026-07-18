@@ -1,0 +1,1 @@
+import{n as e}from"./chunk-Y2CYZVJY-D_B2ZRNt.js";import{p as t}from"./vendor~DiagramPanel~xychartDiagram-FW5EYKEG~wardleyDiagram-EHGQE667~vennDiagram-L72KCM5P~ti~lnll03x4-CABcDkl9.js";var n=e((e,n)=>{let r;return n===`sandbox`&&(r=t(`#i`+e)),t(n===`sandbox`?r.nodes()[0].contentDocument.body:`body`).select(`[id="${e}"]`)},`getDiagramElement`);export{n as t};

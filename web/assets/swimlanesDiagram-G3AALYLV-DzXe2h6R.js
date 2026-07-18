@@ -1,0 +1,8 @@
+import{n as e}from"./chunk-Y2CYZVJY-D_B2ZRNt.js";import"./vendor~DiagramPanel~xychartDiagram-FW5EYKEG~wardleyDiagram-EHGQE667~vennDiagram-L72KCM5P~ti~lnll03x4-CABcDkl9.js";import"./vendor~DiagramPanel~xychartDiagram-FW5EYKEG~wardleyDiagram-EHGQE667~vennDiagram-L72KCM5P~ti~semvusuz-DA974yZA.js";import"./vendor~DiagramPanel~xychartDiagram-FW5EYKEG~wardleyDiagram-EHGQE667~vennDiagram-L72KCM5P~ti~jw0j0c4u-CeGCink4.js";import"./chunk-HOUHSVGY-Dc42_3PO.js";import"./vendor~DiagramPanel~xychartDiagram-FW5EYKEG~swimlanesDiagram-G3AALYLV~stateDiagram-v2-6OUMA~gy2j1xqv-goQzzOQo.js";import"./chunk-7BUUIJ7U-A_gfCr4s.js";import"./chunk-OGEWGWER-Do9s2PDR.js";import"./chunk-32BRIVSS-DmxKBfby.js";import"./chunk-XXDRQBXY-EPvSNzJk.js";import"./chunk-VR4S4FIN-Dsijv9R1.js";import"./chunk-C7G6YPKG-M2Ktj92N.js";import"./vendor~DiagramPanel~swimlanesDiagram-G3AALYLV~stateDiagram-v2-6OUMAXLB~stateDiagram-2N3HPSR~nnhfy9vf-D8scT3Xs.js";import"./vendor~DiagramPanel~swimlanesDiagram-G3AALYLV~stateDiagram-v2-6OUMAXLB~stateDiagram-2N3HPSR~pd94677c-BQN_yPoK.js";import"./chunk-FWX5IMBZ-31xeRxxy.js";import"./vendor~DiagramPanel~swimlanesDiagram-G3AALYLV~sequenceDiagram-DBY2YBRQ~kanban-definition-HU~nt6dxg0m-bP1A85o-.js";import{r as t,t as n}from"./vendor~swimlanesDiagram-G3AALYLV~flowDiagram-23GEKE2U-DBJpaPG8.js";var r=n({defaultLayout:`swimlane`,styles:e(e=>`${t(e)}
+  .swimlane.cluster rect {
+    stroke: ${e.clusterBorder} !important;
+  }
+  [data-look="neo"].cluster rect {
+    filter: none;
+  }
+`,`getStyles`)});export{r as diagram};
